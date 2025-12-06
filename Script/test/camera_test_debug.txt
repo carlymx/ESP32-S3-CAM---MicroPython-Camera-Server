@@ -1,0 +1,78 @@
+>>> ESP-ROM:esp32s3-20210327
+Build:Mar 27 2021
+rst:0x1 (POWERON),boot:0x2a (SPI_FAST_FLASH_BOOT)
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fce2820,len:0xe74
+load:0x403c8700,len:0x4
+load:0x403c8704,len:0xc20
+load:0x403cb700,len:0x2f8c
+entry 0x403c88ac
+[131][INFO] Script de prueba de cámara con depuración iniciado
+[132][INFO] INICIANDO PRUEBA COMPLETA DE CÁMARA
+[132][INFO] 1. Probando módulo de cámara...
+[142][INFO] === INICIANDO PRUEBA DE MÓDULO DE CÁMARA ===
+[142][SUCCESS] Módulo 'camera' disponible
+[152][ERROR] Función 'init' NO disponible
+[152][ERROR] Función 'deinit' NO disponible
+[153][ERROR] Función 'capture' NO disponible
+[162][ERROR] Función 'framesize' NO disponible
+[162][ERROR] Función 'quality' NO disponible
+[172][INFO] 2. Probando pines de cámara...
+[172][INFO] === INICIANDO PRUEBA DE PINS ===
+[192][SUCCESS] Configuración de pines importada exitosamente
+[192][INFO] Configuración de pines:
+[193][INFO]   CAM_D1: 11
+[193][INFO]   CAM_D0: 12
+[202][INFO]   CAM_D3: 9
+[202][INFO]   CAM_D2: 10
+[202][INFO]   CAM_D5: 7
+[203][INFO]   CAM_PCLK: 36
+[212][INFO]   CAM_D4: 8
+[212][INFO]   CAM_D6: 6
+[212][INFO]   CAM_PWDN: 35
+[213][INFO]   CAM_VSYNC: 38
+[213][INFO]   CAM_HREF: 39
+[222][INFO]   CAM_XCLK: 37
+[222][INFO]   CAM_D7: 5
+[222][INFO]   XCLK_FREQ: 20000000
+[223][INFO] 3. Probando inicialización de cámara...
+[232][INFO] === INICIANDO PRUEBA DE INICIALIZACIÓN DE CÁMARA ===
+[242][INFO] Intentando inicializar cámara...
+[242][ERROR] Error durante la inicialización de la cámara: 'module' object has no attribute 'init'
+[252][INFO] 4. Probando memoria...
+[252][INFO] === INICIANDO PRUEBA DE MEMORIA ===
+[264][INFO] Memoria libre antes: 8310848 bytes
+[264][ERROR] Error en prueba de memoria con cámara: 'module' object has no attribute 'init'
+[274][INFO] Memoria libre después: 8310896 bytes
+[274][INFO] Diferencia de memoria: -48 bytes
+[274][INFO] 5. Probando cámara simulada...
+[282][INFO] === INICIANDO PRUEBA DE CÁMARA SIMULADA ===
+[363][SUCCESS] Módulo de cámara simulada importado exitosamente
+Cámara simulada inicializada con argumentos: () {}
+[364][SUCCESS] Resultado de init(): True
+Configurando calidad de imagen a: 12
+[372][SUCCESS] Calidad configurada exitosamente
+Capturando imagen simulada...
+[382][SUCCESS] Imagen simulada capturada, tamaño: 167 bytes
+Cámara simulada desinicializada
+[392][SUCCESS] Cámara simulada desinicializada exitosamente
+[392][INFO] 6. Obteniendo información del sistema...
+[402][INFO] === OBTENIENDO INFORMACIÓN DEL SISTEMA ===
+[425][INFO] Versión de MicroPython: 3.4.0; MicroPython v1.26.1-dirty on 2025-09-16
+[426][INFO] Plataforma: esp32
+[439][INFO] Microcontrolador: 240.0 MHz
+[440][INFO] No se pudo obtener la implementación de MicroPython
+[440][INFO] Módulos disponibles relacionados con cámara:
+[452][INFO]   - camera_mock
+[452][INFO]   - camera_pins
+[452][INFO] === RESUMEN DE PRUEBAS ===
+[453][INFO] mock_camera: EXITOSO
+[462][INFO] pins: EXITOSO
+[462][INFO] camera_module: EXITOSO
+[463][INFO] initialization: FALLIDO
+[463][INFO] Pruebas exitosas: 3/4
+[472][INFO] PRUEBA COMPLETA FINALIZADA
+MicroPython v1.26.1-dirty on 2025-09-16; Generic ESP32S3 module with Octal-SPIRAM with ESP32S3
+Type "help()" for more information.
+>>>
