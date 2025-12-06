@@ -1,0 +1,85 @@
+ESP32-S3 WROOM CAM
+https://es.aliexpress.com/item/1005008285512156.html
+
+- Es en realidad un: ESP32-S3-N16R8
+- Camara: OV5640
+
+------------------------------------------------------------------------------------------------------
+Connected to ESP32-S3 on /dev/ttyACM0:
+Chip type:          ESP32-S3 (QFN56) (revision v0.2)
+Features:           Wi-Fi, BT 5 (LE), Dual Core + LP Core, 240MHz, Embedded PSRAM 8MB (AP_3v3)
+Crystal frequency:  40MHz
+MAC:                90:70:69:14:0b:e0
+
+------------------------------------------------------------------------------------------------------
+
+Performance parameters:
+Controller: XtensaR dual-core 32-bit LX7 CPU, frequency up to 240MHz
+
+Storage:
+384 KB of ROM
+512 KB of SRAM
+16 KB of RTCSRAM
+8 MB of PSRAM
+Operating voltage: 3V to 3.6V.
+Up to 45 GPIOs
+2*12-bit ADC (up to 20 channels)
+Communication interface:
+2 12c interfaces
+2 12s interfaces
+4 SPI interfaces
+3 UART interfaces
+1 USB oTG interface.
+Temperature range: -40 to 65 degrees Celsius
+
+WiFi
+Supports IEEE 802.11 b/g/n protocols
+Supports 20 MHz and 40 MHz bandwidth in the 2.4 GHz band
+Supports 1T1R mode with data rates up to 150 Mbps
+Wireless Multimedia (WMM)
+Frame aggregation (TX/RX A-MPDU, TX/RX A-MSDU)
+Immediate Block Acknowledgement (ImmediateBlock ACK)
+Fragmentation and defragmentation (Fragmentation/defragmentation)-Beacon automatic monitoring (hardware TSF) -4× virtual Wi-Fi interface
+Supports infrastructure network (lnfrastructure BSS) Station mode, SoftAP mode and Station+ SoftAP promiscuous mode. Please note that when ESP32-S3 scans in Station mode, the SoftAP channel will change at the same time
+Antenna diversity
+802.11 mc FTM
+Supports external power amplifier
+
+Bluetooth:
+Bluetooth LE: Bluetooth 5, Bluetoothmesh
+High power mode (20 dBm, sharing PA with Wi-Fi)
+Supports 125Kbps, 500Kbps, 1 Mbps, 2 Mbps.
+Advertising Extensions
+Multiple Advertisement Sets
+Channel Selection Algorithm #2
+Coexistence of Wi-Fi and Bluetooth, sharing the same antenna
+Advanced peripheral interfaces and sensors
+45 xGPIO ports
+Digital interfaces:
+- 4xSPl
+- 1xLCD interface (8-bit
+- 16-bit parallel RGB, l8080, MOTO6800), supports conversion between RGB565, YUV422, YUV420, YUV411
+- 1xDVP8-bit~16-bit camera interface
+-3xUART
+-2xl2C
+- 2x 12S
+- 1xRMT (TX/RX)
+-1x pulse counter
+-LED PWM controller, up to 8 channels
+- 1x full-speed USB OTG
+- 1 x USB Serial/JTAG controller
+- 2x MCPWM
+- 1 x SDIO host interface with 2 card slots
+- General DMA controller (GDMA for short), 5 receive channels and 5 transmit channels
+- 1xTWAI controller, compatible with IS011898-1 (CAN specification 2.0)
+
+Analog interface:
+- 2x12-bit SAR ADC, up to 20 channels
+- 1x temperature sensor
+-14x capacitive sensing GPIO
+Timer:
+- 4x54-bit general timer
+- 1×52-bit system timer
+- 3×watchdog timer
+Product size: 57mm*28mm
+
