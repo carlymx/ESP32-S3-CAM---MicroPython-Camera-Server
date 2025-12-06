@@ -1,3 +1,5 @@
+[Español](./PLAN_ESP.md) - [English](./PLAN.md)
+
 # ESP32-S3 CAM Project Development Plan
 
 ## General Description

@@ -1,4 +1,4 @@
-
+[Español](./PLAN_ESP.md) - [English](./PLAN.md)
 
 # Plan de Desarrollo del Proyecto ESP32-S3 CAM
 

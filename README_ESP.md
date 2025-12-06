@@ -1,3 +1,7 @@
+<img title="" src="./data/imgs/IMG_20251202_104513.jpg" alt="Image-01" width="606" data-align="center">
+
+[Español](./README_ESP.md) - [English](./README.md)
+
 # ESP32-S3 CAM - Proyecto de Cámara con Servidor Web
 
 Este proyecto implementa un firmware para el módulo ESP32-S3 CAM que incluye un servidor web integrado para control y visualización de la cámara.

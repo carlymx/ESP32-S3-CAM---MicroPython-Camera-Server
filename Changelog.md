@@ -1,3 +1,5 @@
+[Español](./Changelog_ESP.md) - [English](Changelog.md)
+
 # Changelog
 
 All notable changes to this project will be documented in this file.

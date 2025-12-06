@@ -1,3 +1,7 @@
+<img title="" src="./data/imgs/IMG_20251202_104513.jpg" alt="Img-01" width="503" data-align="center">
+
+[Español](./README_ESP.md) - [English](./README.md)
+
 # ESP32-S3 CAM - Web Server Camera Project
 
 This project implements firmware for the ESP32-S3 CAM module that includes an integrated web server for camera control and visualization.
