@@ -1,6 +1,25 @@
-# wifi_manager.py
-# Módulo para gestionar la conexión WiFi del ESP32-S3 CAM
-# Implementa modo AP para configuración inicial y modo Station para conexión normal
+r"""
+  ______  _____ _____ ____ ___        _____ ____     _____          __  __ 
+ |  ____|/ ____|  __ \___ \__ \      / ____|___ \   / ____|   /\   |  \/  |
+ | |__  | (___ | |__) |__) | ) |____| (___   __) | | |       /  \  | \  / |
+ |  __|  \___ \|  ___/|__ < / /______\___ \ |__ <  | |      / /\ \ | |\/| |
+ | |____ ____) | |    ___) / /_      ____) |___) | | |____ / ____ \| |  | |
+ |______|_____/|_|   |____/____|    |_____/|____/   \_____/_/    \_\_|  |_|
+                                                                           
+                                                                           
+    ESP32-S3 CAM - WIFI MANAGER MODULE
+    =================================
+    Version: 2.1.0
+    Fecha: 2025-12-09
+    Descripción: Módulo para gestionar la conexión WiFi del ESP32-S3 CAM
+    Implementa modo AP para configuración inicial y modo Station para conexión normal
+    Cambios:
+        - V2.1.0: Implementación de reinicio automático tras guardar credenciales,
+                   mejora en el manejo de caracteres especiales en SSID,
+                   aumento del tiempo de espera a 15 segundos con cuenta regresiva
+        - V2.0.0: Actualización de funcionalidades de red
+        - V1.0.0: Versión inicial del módulo de gestión WiFi
+"""
 
 import network
 import socket
@@ -9,6 +28,47 @@ import time
 import json
 from machine import reset
 from led_controller import LEDController
+
+
+def url_decode(s):
+    """
+    Decodifica una cadena con codificación URL (por ejemplo, %40 para @)
+    :param s: Cadena codificada
+    :return: Cadena decodificada
+    """
+    # Reemplazar los códigos URL comunes
+    s = s.replace('%20', ' ')  # espacio
+    s = s.replace('%40', '@')  # @
+    s = s.replace('%23', '#')  # #
+    s = s.replace('%24', '$')  # $
+    s = s.replace('%25', '%')  # %
+    s = s.replace('%5E', '^')  # ^
+    s = s.replace('%26', '&')  # &
+    s = s.replace('%2A', '*')  # *
+    s = s.replace('%28', '(')  # (
+    s = s.replace('%29', ')')  # )
+    s = s.replace('%2B', '+')  # +
+    s = s.replace('%3D', '=')  # =
+    s = s.replace('%2F', '/')  # /
+    s = s.replace('%3F', '?')  # ?
+    s = s.replace('%3C', '<')  # <
+    s = s.replace('%3E', '>')  # >
+    s = s.replace('%7B', '{')  # {
+    s = s.replace('%7D', '}')  # }
+    s = s.replace('%5B', '[')  # [
+    s = s.replace('%5D', ']')  # ]
+    s = s.replace('%7C', '|')  # |
+    s = s.replace('%5C', '\\')  # \
+    s = s.replace('%60', '`')  # `
+    s = s.replace('%7E', '~')  # ~
+    s = s.replace('%22', '"')  # "
+    s = s.replace('%27', "'")  # '
+    s = s.replace('%3B', ';')  # ;
+    s = s.replace('%3A', ':')  # :
+    s = s.replace('%21', '!')  # !
+    s = s.replace('%2C', ',')  # ,
+
+    return s
 
 class WiFiManager:
     def __init__(self, ssid_file="ssid_config.json"):
@@ -33,7 +93,9 @@ class WiFiManager:
                 config = json.load(f)
                 self.ssid = config.get('ssid')
                 self.password = config.get('password')
-            return True
+                # Obtener el estado de configuración, por defecto False si no existe
+                configured = config.get('configured', False)
+                return configured  # Retornar el estado para saber si hay credenciales válidas
         except Exception as e:
             print("No se pudieron cargar las credenciales WiFi:", e)
             return False
@@ -46,7 +108,8 @@ class WiFiManager:
         """
         config = {
             'ssid': ssid,
-            'password': password
+            'password': password,
+            'configured': True  # Marcar que las credenciales han sido configuradas
         }
         try:
             with open(self.ssid_file, 'w') as f:
@@ -125,6 +188,38 @@ class WiFiManager:
         # Iniciar el servidor web para configuración
         self.start_web_server()
     
+    def scan_wifi_networks(self):
+        """
+        Escanea y devuelve las redes WiFi disponibles
+        :return: Lista de redes WiFi disponibles
+        """
+        # Asegurarse de que el modo Station esté activo para escanear
+        was_active = self.sta_if.active()
+        if not was_active:
+            self.sta_if.active(True)
+
+        try:
+            # Escanear redes disponibles
+            networks = self.sta_if.scan()
+            wifi_list = []
+            for net in networks:
+                ssid = net[0].decode('utf-8')  # SSID
+                signal_strength = net[3]  # RSSI
+                security = net[4]  # 0: open, 1: WEP, 2: WPA, 3: WPA2, 4: WPA/WPA2
+                wifi_list.append({
+                    'ssid': ssid,
+                    'rssi': signal_strength,
+                    'security': security
+                })
+            return wifi_list
+        except Exception as e:
+            print("Error al escanear redes WiFi:", e)
+            return []
+        finally:
+            # Restaurar el estado original si era inactivo
+            if not was_active:
+                self.sta_if.active(False)
+
     def start_web_server(self):
         """
         Inicia un servidor web simple para configuración de WiFi en modo AP
@@ -134,35 +229,47 @@ class WiFiManager:
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind(addr)
         s.listen(1)
-        print('Servidor web escuchando en', addr)
-        
+        ap_ip = self.ap_if.ifconfig()[0]  # Obtener IP real del AP
+        print('Servidor web escuchando en', (ap_ip, 80))
+
+        # Escanear redes WiFi disponibles
+        available_networks = self.scan_wifi_networks()
+
+        # Generar opciones para el desplegable de redes WiFi
+        wifi_options = ""
+        for net in available_networks:
+            ssid = net['ssid']
+            rssi = net['rssi']
+            security_icon = "🔒" if net['security'] > 0 else "🔓"
+            wifi_options += f'<option value="{ssid}">{security_icon} {ssid} (Señal: {rssi} dBm)</option>'
+
         # Página HTML para configuración de WiFi
-        html = """<!DOCTYPE html>
+        html = f"""<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <title>Configuración WiFi - ESP32-S3 CAM</title>
     <style>
-        body {
+        body {{
             font-family: Arial, sans-serif;
             background-color: #121212;
             color: #e0e0e0;
             text-align: center;
             margin: 0;
             padding: 20px;
-        }
-        .container {
+        }}
+        .container {{
             max-width: 500px;
             margin: 0 auto;
             background-color: #1e1e1e;
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
-        }
-        h1 {
+        }}
+        h1 {{
             color: #bb86fc;
-        }
-        input[type="text"], input[type="password"] {
+        }}
+        input[type="text"], input[type="password"], select {{
             width: 100%;
             padding: 12px;
             margin: 10px 0;
@@ -171,8 +278,8 @@ class WiFiManager:
             color: #e0e0e0;
             border: 1px solid #444;
             border-radius: 5px;
-        }
-        button {
+        }}
+        button {{
             background-color: #bb86fc;
             color: white;
             padding: 14px 20px;
@@ -182,28 +289,38 @@ class WiFiManager:
             cursor: pointer;
             width: 100%;
             font-size: 16px;
-        }
-        button:hover {
+        }}
+        button:hover {{
             background-color: #9a67ea;
-        }
-        .status {
+        }}
+        .status {{
             margin-top: 20px;
             padding: 10px;
             background-color: #2d2d2d;
             border-radius: 5px;
-        }
+        }}
+        .refresh-btn {{
+            background-color: #6200ea;
+            margin-top: 5px;
+        }}
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Configuración WiFi - ESP32-S3 CAM</h1>
         <form method="POST" action="/configure">
-            <label for="ssid">Nombre de la red (SSID):</label>
-            <input type="text" id="ssid" name="ssid" required>
+            <label for="ssid">Selecciona una red WiFi:</label>
+            <select id="ssid" name="ssid" required>
+                <option value="" disabled selected>Selecciona una red...</option>
+                {wifi_options}
+            </select>
+            <p>o introduce manualmente:</p>
+            <input type="text" id="ssid_manual" name="ssid_manual" placeholder="Nombre de la red (SSID)">
             <label for="password">Contraseña:</label>
-            <input type="password" id="password" name="password" required>
+            <input type="password" id="password" name="password" required placeholder="Contraseña de la red">
             <button type="submit">Conectar</button>
         </form>
+        <button class="refresh-btn" onclick="location.reload()">Actualizar redes disponibles</button>
         <div class="status">
             <p>Conecta tu dispositivo a esta red WiFi:</p>
             <p><strong>SSID:</strong> ESP32-CAM-Setup</p>
@@ -231,40 +348,83 @@ class WiFiManager:
                 # Procesar la solicitud
                 if path == "configure" and request.startswith("POST"):
                     # Extraer credenciales de la solicitud POST
-                    ssid_match = ure.search("ssid=(.*?)(&|$)", request)
-                    password_match = ure.search("password=(.*?)(&|$)", request)
-                    
-                    if ssid_match and password_match:
-                        ssid = ssid_match.group(1).replace("+", " ")
-                        password = password_match.group(1).replace("+", " ")
-                        
-                        # Guardar credenciales y tratar de conectar
-                        self.save_credentials(ssid, password)
-                        cl.send('HTTP/1.1 200 OK\r\n')
-                        cl.send('Content-Type: text/html\r\n')
-                        cl.send('Connection: close\r\n\r\n')
-                        cl.send('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Configuración WiFi - ESP32-S3 CAM</title><style>body{font-family:Arial,sans-serif;background-color:#121212;color:#e0e0e0;text-align:center;margin:0;padding:20px;}.container{max-width:500px;margin:0 auto;background-color:#1e1e1e;padding:30px;border-radius:10px;box-shadow:0 0 20px rgba(0,0,0,0.5);}h1{color:#bb86fc;}.status{margin-top:20px;padding:10px;background-color:#2d2d2d;border-radius:5px;}</style></head><body><div class="container"><h1>Configuración WiFi</h1><div class="status"><p>Credenciales guardadas exitosamente</p><p>Conectando a la red: {}</p><p>Reiniciando dispositivo...</p></div></body></html>'.format(ssid))
-                        cl.close()
-                        
-                        # Conectar a la red WiFi configurada
-                        if self.connect_to_wifi(ssid, password):
-                            print("Conectado exitosamente a la nueva red WiFi")
-                            # Reiniciar para aplicar cambios
-                            time.sleep(2)
+                    # Primero intentar obtener SSID del menú desplegable
+                    ssid_match = ure.search("ssid=([^&]*)(?:&|$)", request)
+                    # También intentar obtener SSID manual
+                    ssid_manual_match = ure.search("ssid_manual=([^&]*)(?:&|$)", request)
+                    password_match = ure.search("password=([^&]*)(?:&|$)", request)
+
+                    if password_match:
+                        # Priorizar SSID seleccionado del desplegable, sino usar manual
+                        ssid = ""
+                        if ssid_match:
+                            ssid = url_decode(ssid_match.group(1).replace("+", " "))
+
+                        # Si no se seleccionó SSID del desplegable o está vacío, usar el ingresado manualmente
+                        if not ssid or ssid == "" or ssid == "Selecciona+una+red...":
+                            if ssid_manual_match:
+                                ssid = url_decode(ssid_manual_match.group(1).replace("+", " "))
+
+                        password = url_decode(password_match.group(1).replace("+", " "))
+
+                        if ssid and password:  # Asegurarse de que tengamos ambos
+                            # Guardar credenciales y tratar de conectar
+                            self.save_credentials(ssid, password)
+                            # Escapar caracteres especiales en el SSID para evitar problemas en HTML
+                            escaped_ssid = ssid.replace('"', '&quot;').replace("'", "&#39;").replace('<', '&lt;').replace('>', '&gt;')
+
+                            # Usar un método más seguro para construir la respuesta HTML
+                            html_response = ('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Configuración WiFi - ESP32-S3 CAM</title>'
+                                             '<style>body{font-family:Arial,sans-serif;background-color:#121212;color:#e0e0e0;text-align:center;margin:0;padding:20px;}'
+                                             '.container{max-width:500px;margin:0 auto;background-color:#1e1e1e;padding:30px;border-radius:10px;box-shadow:0 0 20px rgba(0,0,0,0.5);}'
+                                             'h1{color:#bb86fc;}.status{margin-top:20px;padding:10px;background-color:#2d2d2d;border-radius:5px;}</style>'
+                                             '<script>setTimeout(function(){ window.location.href = "/restart"; }, 15000);</script></head>'
+                                             '<body><div class="container"><h1>Configuración WiFi</h1><div class="status">'
+                                             '<p>Credenciales guardadas exitosamente</p>'
+                                             '<p>Conectando a la red: ' + escaped_ssid + '</p>'
+                                             '<p>El dispositivo se reiniciará en 15 segundos...</p></div></body></html>')
+
+                            cl.send('HTTP/1.1 200 OK\r\n')
+                            cl.send('Content-Type: text/html\r\n')
+                            cl.send('Connection: close\r\n\r\n')
+                            cl.send(html_response)
+                            cl.close()
+
+                            # Reiniciar el dispositivo después de enviar la respuesta
+                            time.sleep(15)
                             reset()
                         else:
-                            print("Error al conectar a la nueva red WiFi")
-                            time.sleep(2)
-                            reset()
-                        
-                        break
+                            # Si faltan credenciales, regresar a la página con un mensaje de error
+                            cl.send('HTTP/1.1 400 BAD REQUEST\r\n')
+                            cl.send('Content-Type: text/html\r\n')
+                            cl.send('Connection: close\r\n\r\n')
+                            cl.send('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Configuración WiFi - ESP32-S3 CAM</title><style>body{font-family:Arial,sans-serif;background-color:#121212;color:#e0e0e0;text-align:center;margin:0;padding:20px;}.container{max-width:500px;margin:0 auto;background-color:#1e1e1e;padding:30px;border-radius:10px;box-shadow:0 0 20px rgba(0,0,0,0.5);}h1{color:#bb86fc;}.status{margin-top:20px;padding:10px;background-color:#2d2d2d;border-radius:5px;}.error{{color:#ff5252;}}</style></head><body><div class="container"><h1>Configuración WiFi - ESP32-S3 CAM</h1><div class="error"><p>Por favor selecciona una red WiFi o ingrésala manualmente</p></div><button onclick="history.back()">Volver</button></div></body></html>')
+                            cl.close()
+                elif path == "configure" and request.startswith("GET"):
+                    # Si se accede a /configure vía GET después de haber guardado las credenciales,
+                    # redirigir de vuelta a la página principal
+                    cl.send('HTTP/1.1 302 Found\r\n')
+                    cl.send('Location: /\r\n')
+                    cl.send('Connection: close\r\n\r\n')
+                    cl.close()
+                elif path == "restart":
+                    # Enviar página de confirmación de reinicio
+                    cl.send('HTTP/1.1 200 OK\r\n')
+                    cl.send('Content-Type: text/html\r\n')
+                    cl.send('Connection: close\r\n\r\n')
+                    cl.send('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reinicio - ESP32-S3 CAM</title><style>body{font-family:Arial,sans-serif;background-color:#121212;color:#e0e0e0;text-align:center;margin:0;padding:20px;}.container{max-width:500px;margin:0 auto;background-color:#1e1e1e;padding:30px;border-radius:10px;box-shadow:0 0 20px rgba(0,0,0,0.5);}h1{color:#bb86fc;}.status{margin-top:20px;padding:10px;background-color:#2d2d2d;border-radius:5px;}</style></head><body><div class="container"><h1>Reinicio del dispositivo</h1><div class="status"><p>Reiniciando ESP32-S3...</p><p>Por favor espere unos momentos.</p></div></body></html>')
+                    cl.close()
+
+                    # Reiniciar el dispositivo después de enviar la respuesta
+                    time.sleep(2)
+                    reset()
                 else:
                     # Enviar página HTML
                     cl.send('HTTP/1.1 200 OK\r\n')
                     cl.send('Content-Type: text/html\r\n')
                     cl.send('Connection: close\r\n\r\n')
                     cl.send(html)
-                
+
                 cl.close()
             except Exception as e:
                 print('Error en el servidor web:', e)
@@ -291,18 +451,43 @@ class WiFiManager:
         Configura el WiFi según el estado actual (conectado o desconectado)
         """
         print("Iniciando configuración de WiFi...")
-        
+
         # Primero intentar cargar credenciales guardadas y conectar
+        # load_credentials ahora retorna True si las credenciales están marcadas como configuradas
         if self.load_credentials():
-            print("Credenciales encontradas, intentando conectar...")
+            print("Credenciales configuradas encontradas, intentando conectar...")
             if self.connect_to_wifi():
                 print("Conectado a la red guardada")
                 return True
             else:
                 print("No se pudo conectar con credenciales guardadas")
-        
+                # Limpiar el estado de configuración si las credenciales no funcionan
+                self.clear_configured_status()
+        else:
+            print("No hay credenciales configuradas guardadas")
+
         # Si no se pudo conectar con credenciales guardadas, iniciar modo AP
         print("Iniciando modo AP para configuración WiFi...")
         self.start_ap_mode()
-        
+
         return False
+
+    def clear_configured_status(self):
+        """
+        Limpia el estado de configuración en ssid_config.json
+        """
+        try:
+            # Cargar configuración existente
+            with open(self.ssid_file, 'r') as f:
+                config = json.load(f)
+
+            # Marcar como no configurado
+            config['configured'] = False
+
+            # Guardar cambios
+            with open(self.ssid_file, 'w') as f:
+                json.dump(config, f)
+
+            print("Estado de configuración limpiado")
+        except Exception as e:
+            print("Error al limpiar el estado de configuración:", e)

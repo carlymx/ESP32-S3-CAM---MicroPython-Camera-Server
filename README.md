@@ -1,82 +1,172 @@
-<img title="" src="./data/imgs/IMG_20251202_104513.jpg" alt="Img-01" width="503" data-align="center">
+# MicroPython Camera ESP32-S3 Project
 
-[Español](./README_ESP.md) - [English](./README.md)
+[Español](README_ESP.md)
+[Documentation API](micropython-camera-API-documentation.md) | [Project Configuration](QWEN.md)
 
-# ESP32-S3 CAM - Web Server Camera Project
+## 📸 Overview
 
-This project implements firmware for the ESP32-S3 CAM module that includes an integrated web server for camera control and visualization.
+This is a comprehensive MicroPython project for the **ESP32-S3 CAM** board that implements a **WiFi-enabled camera system**. The project provides **video streaming** and **camera configuration** capabilities via a web interface, with support for both real hardware and simulated environments.
 
-## Features
+### 🎯 Key Features
 
-- **Dark theme**: All web interfaces have a dark theme as requested
-- **RGB LED Control**: The LED on pin 48 indicates the device status:
-  - Purple: Initial state
-  - Blue: AP (Access Point) mode
-  - Green: Station mode (connected to WiFi)
-  - White: Video transmission
-  - Red: Error
-- **AP mode for configuration**: If there are no saved credentials or cannot connect, the ESP32 creates its own WiFi network for configuration
-- **Real-time video streaming**: Real-time camera view through the browser
-- **Configuration interface**: Web page to adjust camera parameters with real-time preview
-- **Hardware information**: The configuration interface shows technical details of the camera hardware
+- **📸 Camera Interface**: Full control of ESP32-S3 camera with new API methods
+- **🌐 WiFi Management**: Dual-mode operation with Station and Access Point modes
+- **📺 Web Interface**: Live video streaming and camera configuration via web UI
+- **💡 LED Control**: RGB LED status indicator with different colors for system states
+- **🧪 Mock Support**: Simulated camera functionality for development and testing
 
-## Installation
+---
 
-1. Make sure you have MicroPython installed on your ESP32-S3 CAM
-2. Copy all project files to the ESP32-S3 CAM memory:
-   - `main.py`
-   - `led_controller.py`
-   - `wifi_manager.py`
-   - `video_server.py`
-   - `camera_config_server.py`
-3. Restart the device
+## 🏗️ Architecture
 
-## Usage
+The project is structured around several key modules:
 
-1. On startup, the device will try to connect to a WiFi network with saved credentials
-2. If there are no saved credentials or cannot connect, it will start in AP mode
-3. In AP mode, you can connect to the "ESP32-CAM-Setup" network and access the web configuration at the device IP
-4. Once connected to WiFi, you can access the live view at the device IP
-5. To access camera configuration, visit IP/cam
+| Module                    | Purpose                                         |
+| ------------------------- | ----------------------------------------------- |
+| `main.py`                 | Main application that orchestrates all modules  |
+| `video_server.py`         | Handles live video streaming via web interface  |
+| `camera_config_server.py` | Provides camera configuration interface         |
+| `wifi_manager.py`         | Manages WiFi connectivity (Station/AP modes)    |
+| `led_controller.py`       | Controls RGB LED for system status indication   |
+| `camera_pins.py`          | Hardware pin definitions for camera connections |
+| `camera_mock.py`          | Simulated camera implementation for development |
 
-## Project Files
+---
 
-- `main.py`: Main file that integrates all modules
-- `led_controller.py`: RGB LED controller with status codes
-- `wifi_manager.py`: WiFi connection manager with AP mode for configuration
-- `video_server.py`: Web server for real-time video streaming
-- `camera_config_server.py`: Web server for camera configuration interface
-- `README.md`: Project documentation
-- `PLAN.md`: Detailed project plan
-- `Changelog.md`: Project change history
+## 🚀 Getting Started
 
-## Camera Configuration
+### Prerequisites
 
-The configuration interface allows adjusting:
+- **ESP32-S3 CAM** board with PSRAM
+- **MicroPython** firmware with camera module support
+- Computer with **MicroPython** development environment
 
-- Image quality and resolution
-- Brightness, contrast and saturation
-- Special effects
-- White balance
-- Exposure level
-- Orientation (horizontal mirror and vertical flip)
+### Setup Process
 
-## Possible Future Improvements (TODOlist)
+1. **Flash MicroPython Firmware**:
+   
+   - Flash a MicroPython firmware that includes camera support to your ESP32-S3 CAM board
+   - The camera module must be compiled into the firmware
 
-- Add authentication to protect web interfaces
-- Implement video recording and SD card storage
-- Add motion detection and notifications
-- Implement remote control via API commands
-- Add object tracking functionality
-- Incorporate face recognition
-- Develop mobile app for remote control
-- Implement streaming to multiple simultaneous clients
-- Add smart doorbell functionality with notifications
-- Create AI-based alert system
-- Implement video compression to reduce bandwidth
-- Add support for multiple cameras
-- Integrate with cloud services for remote storage
+2. **Upload Files**:
+   
+   - Upload all Python files from the `Script` directory to your ESP32-S3 CAM board
+   - Ensure `ssid_config.json` is properly configured or will be created during first run
 
-## License
+3. **Initial Configuration**:
+   
+   - On first boot, the device will create an access point "ESP32-CAM-Setup"
+   - Connect to this AP and access the configuration portal at 192.168.4.1
+   - Enter credentials for your target WiFi network
 
-This project is developed for educational and learning purposes. It is distributed under the MIT License.
+4. **Operation**:
+   
+   - After configuration, the device connects to your WiFi
+   - Access the live video stream at the device's IP address
+   - Camera settings can be adjusted via the web configuration interface
+
+---
+
+## 📋 Usage
+
+### Starting the Application
+
+The main application flow is controlled by `main.py`:
+
+1. Initializes LED controller for status indication
+2. Sets up WiFi (attempts connection to saved credentials or creates AP) [WIFI Manual](./WIFI_CONFIG.md)
+3. Starts video streaming server
+4. Serves live camera feed via web interface
+
+### LED Status Indicators
+
+| Color     | Meaning                          |
+| --------- | -------------------------------- |
+| 🟣 Purple | Initial state                    |
+| 🔵 Blue   | Access Point mode                |
+| 🟢 Green  | Station mode (connected to WiFi) |
+| ⚪ White   | Video streaming                  |
+| 🔴 Red    | Error state                      |
+
+---
+
+## ⚙️ Camera API Usage
+
+The project uses the new MicroPython Camera API with:
+
+- `Camera` class for camera control
+- `PixelFormat`, `FrameSize`, `GrabMode` enums for configuration
+- Getter/setter methods for camera properties (e.g., `set_brightness()`, `get_brightness()`)
+
+---
+
+## 🧪 Testing and Simulation
+
+- The `camera_mock.py` module provides a complete simulation of the camera API
+- This allows for development and testing without physical hardware
+- All camera functions are mocked with realistic behavior
+
+---
+
+## 📁 Project Structure
+
+```
+Script/
+├── camera_config_info.py    # Configuration information
+├── camera_config_server.py  # Web configuration server
+├── camera_mock.py          # Mock camera implementation
+├── camera_pins.py          # Hardware pin definitions
+├── led_controller.py       # RGB LED control
+├── main.py                # Main application entry point
+├── ssid_config.json       # WiFi configuration file
+├── video_server.py        # Video streaming server
+├── wifi_manager.py        # WiFi connectivity management
+└── test/
+    ├── camera_test_debug.py # Camera debugging utilities
+    └── test_RGB.py         # RGB LED testing
+```
+
+---
+
+## 🛠️ Development Conventions
+
+### Code Structure
+
+- All code follows Spanish comments and documentation
+- Error handling is implemented throughout the modules
+- LED indicators provide visual feedback for different system states
+
+### Testing
+
+- Comprehensive testing with both real hardware and mocked implementations
+- Error handling and status reporting for all modules
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- [MicroPython](https://micropython.org/) for the amazing firmware
+- ESP32-S3 CAM hardware community
+- All contributors to this project
+
+---
+
+## 📞 Support
+
+For support, please open an issue in the repository or contact the maintainers.

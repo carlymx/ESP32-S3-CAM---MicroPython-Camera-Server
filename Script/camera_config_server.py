@@ -1,6 +1,25 @@
-# camera_config_server.py
-# Módulo para servir la interfaz de configuración de la cámara
-# Permite ajustar parámetros y ver previsualización en tiempo real
+r"""
+  ______  _____ _____ ____ ___        _____ ____     _____          __  __ 
+ |  ____|/ ____|  __ \___ \__ \      / ____|___ \   / ____|   /\   |  \/  |
+ | |__  | (___ | |__) |__) | ) |____| (___   __) | | |       /  \  | \  / |
+ |  __|  \___ \|  ___/|__ < / /______\___ \ |__ <  | |      / /\ \ | |\/| |
+ | |____ ____) | |    ___) / /_      ____) |___) | | |____ / ____ \| |  | |
+ |______|_____/|_|   |____/____|    |_____/|____/   \_____/_/    \_\_|  |_|
+                                                                           
+                                                                           
+    ESP32-S3 CAM - CAMERA CONFIG SERVER MODULE
+    ==========================================
+    Version: 2.2.0
+    Fecha: 2025-12-09
+    Descripción: Módulo para servir la interfaz de configuración de la cámara
+    Permite ajustar parámetros y ver previsualización en tiempo real
+    Cambios:
+        - V2.2.0: Compatibilidad con flujo de reinicio automático tras configuración WiFi
+        - V2.1.0: Corrección del problema de watchdog timer, actualización a nueva API,
+                  implementación de inicialización diferida
+        - V2.0.0: Actualización completa a la nueva API de cámara con métodos get/set
+        - V1.0.0: Versión inicial del módulo de configuración
+"""
 
 import socket
 import time
@@ -9,12 +28,17 @@ from led_controller import LEDController
 # Intentar importar la cámara real, sino usar simulación
 try:
     import camera
+    from camera import Camera, FrameSize, PixelFormat, GrabMode
     CAMERA_AVAILABLE = True
     print("Cámara real disponible")
+    # Create a camera instance for the real camera
+    cam = None
 except ImportError:
     import camera_mock as camera
     CAMERA_AVAILABLE = False
     print("Usando simulación de cámara")
+    # For the mock, we can use the module directly
+    cam = None
 
 class CameraConfigServer:
     def __init__(self, port=80):
@@ -45,18 +69,35 @@ class CameraConfigServer:
         Obtiene los ajustes actuales de la cámara
         :return: Diccionario con los ajustes actuales
         """
-        settings = {
-            'framesize': camera.FRAME_VGA,
-            'quality': camera.quality(),
-            'brightness': camera.brightness(),
-            'contrast': camera.contrast(),
-            'saturation': camera.saturation(),
-            'special_effect': camera.special_effect(),
-            'wb_mode': camera.wb_mode(),
-            'ae_level': camera.ae_level(),
-            'hmirror': camera.hmirror(),
-            'vflip': camera.vflip()
-        }
+        global cam
+        if CAMERA_AVAILABLE and cam is not None:
+            # Using the new API with get_ methods
+            settings = {
+                'framesize': cam.get_frame_size(),
+                'quality': cam.get_quality(),
+                'brightness': cam.get_brightness(),
+                'contrast': cam.get_contrast(),
+                'saturation': cam.get_saturation(),
+                'special_effect': cam.get_special_effect(),
+                'wb_mode': cam.get_wb_mode(),
+                'ae_level': cam.get_ae_level(),
+                'hmirror': cam.get_hmirror(),
+                'vflip': cam.get_vflip()
+            }
+        else:
+            # Using mock camera
+            settings = {
+                'framesize': camera.FRAME_VGA,
+                'quality': camera.quality(),
+                'brightness': camera.brightness(),
+                'contrast': camera.contrast(),
+                'saturation': camera.saturation(),
+                'special_effect': camera.special_effect(),
+                'wb_mode': camera.wb_mode(),
+                'ae_level': camera.ae_level(),
+                'hmirror': camera.hmirror(),
+                'vflip': camera.vflip()
+            }
         return settings
     
     def set_camera_settings(self, settings):
@@ -64,27 +105,52 @@ class CameraConfigServer:
         Establece los ajustes de la cámara
         :param settings: Diccionario con los ajustes a aplicar
         """
+        global cam
         try:
-            if 'framesize' in settings:
-                camera.framesize(settings['framesize'])
-            if 'quality' in settings:
-                camera.quality(settings['quality'])
-            if 'brightness' in settings:
-                camera.brightness(settings['brightness'])
-            if 'contrast' in settings:
-                camera.contrast(settings['contrast'])
-            if 'saturation' in settings:
-                camera.saturation(settings['saturation'])
-            if 'special_effect' in settings:
-                camera.special_effect(settings['special_effect'])
-            if 'wb_mode' in settings:
-                camera.wb_mode(settings['wb_mode'])
-            if 'ae_level' in settings:
-                camera.ae_level(settings['ae_level'])
-            if 'hmirror' in settings:
-                camera.hmirror(settings['hmirror'])
-            if 'vflip' in settings:
-                camera.vflip(settings['vflip'])
+            if CAMERA_AVAILABLE and cam is not None:
+                # Using the new API with set_ methods
+                if 'framesize' in settings:
+                    cam.set_frame_size(settings['framesize'])
+                if 'quality' in settings:
+                    cam.set_quality(settings['quality'])
+                if 'brightness' in settings:
+                    cam.set_brightness(settings['brightness'])
+                if 'contrast' in settings:
+                    cam.set_contrast(settings['contrast'])
+                if 'saturation' in settings:
+                    cam.set_saturation(settings['saturation'])
+                if 'special_effect' in settings:
+                    cam.set_special_effect(settings['special_effect'])
+                if 'wb_mode' in settings:
+                    cam.set_wb_mode(settings['wb_mode'])
+                if 'ae_level' in settings:
+                    cam.set_ae_level(settings['ae_level'])
+                if 'hmirror' in settings:
+                    cam.set_hmirror(settings['hmirror'])
+                if 'vflip' in settings:
+                    cam.set_vflip(settings['vflip'])
+            else:
+                # Using mock camera
+                if 'framesize' in settings:
+                    camera.framesize(settings['framesize'])
+                if 'quality' in settings:
+                    camera.quality(settings['quality'])
+                if 'brightness' in settings:
+                    camera.brightness(settings['brightness'])
+                if 'contrast' in settings:
+                    camera.contrast(settings['contrast'])
+                if 'saturation' in settings:
+                    camera.saturation(settings['saturation'])
+                if 'special_effect' in settings:
+                    camera.special_effect(settings['special_effect'])
+                if 'wb_mode' in settings:
+                    camera.wb_mode(settings['wb_mode'])
+                if 'ae_level' in settings:
+                    camera.ae_level(settings['ae_level'])
+                if 'hmirror' in settings:
+                    camera.hmirror(settings['hmirror'])
+                if 'vflip' in settings:
+                    camera.vflip(settings['vflip'])
         except Exception as e:
             print("Error al aplicar ajustes de cámara:", e)
     
@@ -401,7 +467,12 @@ class CameraConfigServer:
                     # Enviar frame de previsualización
                     try:
                         # Capturar imagen de la cámara
-                        img = camera.capture()
+                        if CAMERA_AVAILABLE and cam is not None:
+                            img = cam.capture()
+                        else:
+                            # Use mock camera if real camera is not available
+                            img = camera.capture()
+
                         if img:
                             cl.send('HTTP/1.1 200 OK\r\n')
                             cl.send('Content-Type: image/jpeg\r\n')
@@ -411,6 +482,8 @@ class CameraConfigServer:
                             cl.send('HTTP/1.1 500 INTERNAL SERVER ERROR\r\n\r\n')
                     except Exception as e:
                         print("Error al capturar imagen para previsualización:", e)
+                        import sys
+                        sys.print_exception(e)
                         cl.send('HTTP/1.1 500 INTERNAL SERVER ERROR\r\n\r\n')
                 elif 'POST /update_settings' in request_str:
                     # Extraer el cuerpo de la solicitud POST
@@ -436,11 +509,39 @@ class CameraConfigServer:
                 elif 'GET /reset_camera' in request_str:
                     # Reiniciar la cámara
                     try:
-                        camera.deinit()
-                        time.sleep(1)
-                        camera.init(0, format=camera.JPEG, fb_location=camera.PSRAM)
-                        camera.framesize(camera.FRAME_VGA)
-                        
+                        if CAMERA_AVAILABLE and cam is not None:
+                            cam.deinit()
+                            time.sleep(1)
+                            # Recreate the camera instance with proper configuration
+                            import camera_pins
+                            pins = camera_pins.OV2640_PINS
+
+                            cam = Camera(
+                                data_pins=[pins['pin_d0'], pins['pin_d1'], pins['pin_d2'], pins['pin_d3'],
+                                          pins['pin_d4'], pins['pin_d5'], pins['pin_d6'], pins['pin_d7']],
+                                pclk_pin=pins['pin_pclk'],
+                                vsync_pin=pins['pin_vsync'],
+                                href_pin=pins['pin_href'],
+                                sda_pin=pins['pin_sscb_sda'],  # SDA pin for I2C communication
+                                scl_pin=pins['pin_sscb_scl'],  # SCL pin for I2C communication
+                                xclk_pin=pins['pin_xclk'],
+                                xclk_freq=pins['xclk_freq_hz'],
+                                powerdown_pin=pins['pin_pwdn'],
+                                reset_pin=-1,  # Adjust if needed
+                                pixel_format=PixelFormat.JPEG,
+                                frame_size=FrameSize.VGA,  # 640x480
+                                jpeg_quality=12,  # Good quality
+                                fb_count=pins['fb_count'],
+                                grab_mode=GrabMode.LATEST,
+                                init=True
+                            )
+                        else:
+                            # For mock camera, just call the deinit/init functions
+                            camera.deinit()
+                            time.sleep(1)
+                            camera.init(format=camera.JPEG, fb_location=camera.PSRAM)
+                            camera.framesize(camera.FRAME_VGA)
+
                         # Enviar respuesta de éxito
                         cl.send('HTTP/1.1 200 OK\r\n')
                         cl.send('Content-Type: text/plain\r\n')
@@ -448,6 +549,8 @@ class CameraConfigServer:
                         cl.send('Cámara reiniciada exitosamente')
                     except Exception as e:
                         print("Error al reiniciar la cámara:", e)
+                        import sys
+                        sys.print_exception(e)
                         cl.send('HTTP/1.1 500 INTERNAL SERVER ERROR\r\n\r\n')
                         cl.send('Error al reiniciar cámara')
                 else:
@@ -468,23 +571,66 @@ class CameraConfigServer:
         """
         Ejecuta el servidor de configuración de cámara
         """
+        global cam
         print("Iniciando servidor de configuración de cámara...")
-        
+
         # Asegurarse de que la cámara esté inicializada
-        try:
-            if not camera.init(0, format=camera.JPEG, fb_location=camera.PSRAM):
-                print("No se pudo inicializar la cámara para el servidor de configuración")
+        if CAMERA_AVAILABLE:
+            try:
+                # Create the camera instance with proper configuration
+                import camera_pins
+                pins = camera_pins.OV2640_PINS
+
+                cam = Camera(
+                    data_pins=[pins['pin_d0'], pins['pin_d1'], pins['pin_d2'], pins['pin_d3'],
+                              pins['pin_d4'], pins['pin_d5'], pins['pin_d6'], pins['pin_d7']],
+                    pclk_pin=pins['pin_pclk'],
+                    vsync_pin=pins['pin_vsync'],
+                    href_pin=pins['pin_href'],
+                    sda_pin=pins['pin_pwdn'],  # This might need adjustment based on actual board
+                    scl_pin=pins['pin_vsync'],  # This might need adjustment based on actual board
+                    xclk_pin=pins['pin_xclk'],
+                    xclk_freq=pins['xclk_freq_hz'],
+                    powerdown_pin=pins['pin_pwdn'],
+                    reset_pin=-1,  # Adjust if needed
+                    pixel_format=PixelFormat.JPEG,
+                    frame_size=FrameSize.VGA,  # 640x480
+                    jpeg_quality=12,  # Good quality
+                    fb_count=pins['fb_count'],
+                    grab_mode=GrabMode.LATEST,
+                    init=True
+                )
+
+                print("Cámara inicializada exitosamente para el servidor de configuración")
+            except Exception as e:
+                print("Error al inicializar la cámara:", e)
+                import sys
+                sys.print_exception(e)
                 self.led.error()
                 return False
-        except Exception as e:
-            print("Error al inicializar la cámara:", e)
-            self.led.error()
-            return False
-        
+        else:
+            # For mock camera, initialize it
+            try:
+                if not camera.init(format=camera.JPEG, fb_location=camera.PSRAM):
+                    print("No se pudo inicializar la cámara simulada para el servidor de configuración")
+                    self.led.error()
+                    return False
+            except Exception as e:
+                print("Error al inicializar la cámara simulada:", e)
+                self.led.error()
+                return False
+
         # Iniciar servidor
         try:
             self.start_server()
         except KeyboardInterrupt:
             print("Servidor de configuración detenido por usuario")
         finally:
-            camera.deinit()
+            if CAMERA_AVAILABLE and cam is not None:
+                cam.deinit()
+                cam = None
+            elif not CAMERA_AVAILABLE:  # For mock camera
+                try:
+                    camera.deinit()
+                except:
+                    pass

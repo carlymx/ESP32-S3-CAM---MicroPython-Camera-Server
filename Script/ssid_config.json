@@ -1,4 +1,1 @@
-{
-    "ssid": "WIFI_NAME",
-    "password": "WIFI_PASS"
-}
+{"configured": false, "password": "PASS", "ssid": "NAME"}

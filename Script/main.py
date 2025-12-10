@@ -1,6 +1,23 @@
-# main.py
-# Archivo principal del proyecto ESP32-S3 CAM
-# Integra todos los módulos: control de LED, WiFi manager, servidor de video y configuración
+r"""
+  ______  _____ _____ ____ ___        _____ ____     _____          __  __ 
+ |  ____|/ ____|  __ \___ \__ \      / ____|___ \   / ____|   /\   |  \/  |
+ | |__  | (___ | |__) |__) | ) |____| (___   __) | | |       /  \  | \  / |
+ |  __|  \___ \|  ___/|__ < / /______\___ \ |__ <  | |      / /\ \ | |\/| |
+ | |____ ____) | |    ___) / /_      ____) |___) | | |____ / ____ \| |  | |
+ |______|_____/|_|   |____/____|    |_____/|____/   \_____/_/    \_\_|  |_|
+                                                                           
+                                                                           
+    ESP32-S3 CAM - MAIN APPLICATION
+    ===============================
+    Version: 2.1.0
+    Fecha: 2025-12-06
+    Descripción: Archivo principal del proyecto ESP32-S3 CAM
+    Integra todos los módulos: control de LED, WiFi manager, servidor de video y configuración
+    Cambios:
+        - V2.1.0: Integración con nueva API de cámara, corrección de inicialización
+        - V2.0.0: Actualización completa a la nueva API de cámara
+        - V1.0.0: Versión inicial del proyecto
+"""
 
 import time
 from machine import reset

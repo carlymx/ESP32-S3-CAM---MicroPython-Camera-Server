@@ -1,5 +1,22 @@
-"""
-Módulo simulado para cámara ESP32-S3 para pruebas
+r"""
+  ______  _____ _____ ____ ___        _____ ____     _____          __  __ 
+ |  ____|/ ____|  __ \___ \__ \      / ____|___ \   / ____|   /\   |  \/  |
+ | |__  | (___ | |__) |__) | ) |____| (___   __) | | |       /  \  | \  / |
+ |  __|  \___ \|  ___/|__ < / /______\___ \ |__ <  | |      / /\ \ | |\/| |
+ | |____ ____) | |    ___) / /_      ____) |___) | | |____ / ____ \| |  | |
+ |______|_____/|_|   |____/____|    |_____/|____/   \_____/_/    \_\_|  |_|
+                                                                           
+                                                                           
+    ESP32-S3 CAM - CAMERA MOCK MODULE
+    ================================
+    Version: 2.1.0
+    Fecha: 2025-12-06
+    Descripción: Módulo simulado para cámara ESP32-S3 para pruebas
+    Proporciona una implementación simulada de la cámara para entornos sin hardware físico
+    Cambios:
+        - V2.1.0: Añadidas clases de la nueva API, métodos get/set completos
+        - V2.0.0: Actualización completa a la nueva API de cámara con métodos get/set
+        - V1.0.0: Versión inicial del módulo simulado
 """
 import time
 
@@ -8,6 +25,57 @@ JPEG = 1
 PSRAM = 2
 FRAME_VGA = 10
 GRAB_LATEST = 0
+
+# Definir las clases para imitar la nueva API
+class PixelFormat:
+    JPEG = 4
+    YUV422 = 1
+    YUV420 = 2
+    GRAYSCALE = 3
+    RGB565 = 0
+    RGB888 = 5
+    RAW = 6
+    RGB444 = 7
+    RGB555 = 8
+
+class FrameSize:
+    R96X96 = 0
+    QQVGA = 1
+    R128x128 = 2
+    QCIF = 3
+    HQVGA = 4
+    R240X240 = 5
+    QVGA = 6
+    R320X320 = 7
+    CIF = 8
+    HVGA = 9
+    VGA = 10
+    SVGA = 11
+    XGA = 12
+    HD = 13
+    SXGA = 14
+    UXGA = 15
+    FHD = 16
+    P_HD = 17
+    P_3MP = 18
+    QXGA = 19
+    QHD = 20
+    WQXGA = 21
+    P_FHD = 22
+    QSXGA = 23
+
+class GrabMode:
+    WHEN_EMPTY = 0
+    LATEST = 1
+
+class GainCeiling:
+    X2 = 0
+    X4 = 1
+    X8 = 2
+    X16 = 3
+    X32 = 4
+    X64 = 5
+    X128 = 6
 
 # Simular valores constantes de cámara
 QUALITY = 12
@@ -30,6 +98,268 @@ _wb_mode = WB_MODE
 _ae_level = AE_LEVEL
 _hmirror = HMIRROR
 _vflip = VFLIP
+
+# Variables para otros estados
+_frame_size = FrameSize.VGA
+_gainceiling = GainCeiling.X2
+_colorbar = False
+_whitebal = True
+_gain_ctrl = True
+_exposure_ctrl = True
+_aec2 = False
+_awb_gain = True
+_agc_gain = 0
+_aec_value = 0
+_dcw = True
+_bpc = False
+_wpc = True
+_raw_gma = True
+_lenc = True
+
+class Camera:
+    def __init__(self, *args, **kwargs):
+        """
+        Inicializa la cámara simulada con los parámetros proporcionados
+        """
+        print("Inicializando cámara simulada con argumentos:", args, kwargs)
+        init_result = init(*args, **kwargs)
+        if init_result:
+            print("Cámara simulada inicializada exitosamente")
+        else:
+            print("Error al inicializar cámara simulada")
+
+    def init(self):
+        """
+        Simula la inicialización de la cámara
+        """
+        return init()
+
+    def deinit(self):
+        """
+        Simula la desinicialización de la cámara
+        """
+        return deinit()
+
+    def capture(self):
+        """
+        Simula la captura de una imagen
+        """
+        return capture()
+
+    def reconfigure(self, frame_size=None, pixel_format=None, grab_mode=None, fb_count=None):
+        """
+        Simula la reconfiguración de la cámara
+        """
+        settings = {}
+        if frame_size is not None:
+            settings['frame_size'] = frame_size
+        if pixel_format is not None:
+            settings['pixel_format'] = pixel_format
+        if grab_mode is not None:
+            settings['grab_mode'] = grab_mode
+        if fb_count is not None:
+            settings['fb_count'] = fb_count
+        print(f"Reconfigurando cámara simulada con: {settings}")
+        return True
+
+    def frame_available(self):
+        """
+        Simula la verificación de disponibilidad de frame
+        """
+        print("Verificando disponibilidad de frame simulado")
+        return True
+
+    def free_buffer(self):
+        """
+        Simula liberación de buffer
+        """
+        print("Liberando buffer simulado")
+        return None
+
+    # Métodos get para obtener configuraciones
+    def get_frame_size(self):
+        return _frame_size
+
+    def get_pixel_format(self):
+        return PixelFormat.JPEG  # Default
+
+    def get_grab_mode(self):
+        return GrabMode.LATEST  # Default
+
+    def get_fb_count(self):
+        return 2  # Default
+
+    def get_quality(self):
+        return _quality
+
+    def get_brightness(self):
+        return _brightness
+
+    def get_contrast(self):
+        return _contrast
+
+    def get_saturation(self):
+        return _saturation
+
+    def get_special_effect(self):
+        return _special_effect
+
+    def get_wb_mode(self):
+        return _wb_mode
+
+    def get_ae_level(self):
+        return _ae_level
+
+    def get_hmirror(self):
+        return _hmirror
+
+    def get_vflip(self):
+        return _vflip
+
+    def get_pixel_width(self):
+        # Return width based on frame size
+        if _frame_size == FrameSize.VGA:
+            return 640
+        elif _frame_size == FrameSize.QVGA:
+            return 320
+        else:
+            return 320  # default
+
+    def get_pixel_height(self):
+        # Return height based on frame size
+        if _frame_size == FrameSize.VGA:
+            return 480
+        elif _frame_size == FrameSize.QVGA:
+            return 240
+        else:
+            return 240  # default
+
+    def get_sensor_name(self):
+        return "OV2640_SIMULADO"
+
+    def get_max_frame_size(self):
+        return FrameSize.UXGA
+
+    # Métodos set para configurar parámetros
+    def set_frame_size(self, value):
+        global _frame_size
+        _frame_size = value
+        print(f"Configurando frame_size a: {value}")
+
+    def set_quality(self, value):
+        global _quality
+        _quality = value
+        print(f"Configurando calidad a: {value}")
+
+    def set_brightness(self, value):
+        global _brightness
+        _brightness = value
+        print(f"Configurando brillo a: {value}")
+
+    def set_contrast(self, value):
+        global _contrast
+        _contrast = value
+        print(f"Configurando contraste a: {value}")
+
+    def set_saturation(self, value):
+        global _saturation
+        _saturation = value
+        print(f"Configurando saturación a: {value}")
+
+    def set_special_effect(self, value):
+        global _special_effect
+        _special_effect = value
+        print(f"Configurando efecto especial a: {value}")
+
+    def set_wb_mode(self, value):
+        global _wb_mode
+        _wb_mode = value
+        print(f"Configurando wb_mode a: {value}")
+
+    def set_ae_level(self, value):
+        global _ae_level
+        _ae_level = value
+        print(f"Configurando ae_level a: {value}")
+
+    def set_hmirror(self, value):
+        global _hmirror
+        _hmirror = value
+        print(f"Configurando hmirror a: {value}")
+
+    def set_vflip(self, value):
+        global _vflip
+        _vflip = value
+        print(f"Configurando vflip a: {value}")
+
+    def set_gainceiling(self, value):
+        global _gainceiling
+        _gainceiling = value
+        print(f"Configurando gainceiling a: {value}")
+
+    def set_colorbar(self, value):
+        global _colorbar
+        _colorbar = value
+        print(f"Configurando colorbar a: {value}")
+
+    def set_whitebal(self, value):
+        global _whitebal
+        _whitebal = value
+        print(f"Configurando whitebal a: {value}")
+
+    def set_gain_ctrl(self, value):
+        global _gain_ctrl
+        _gain_ctrl = value
+        print(f"Configurando gain_ctrl a: {value}")
+
+    def set_exposure_ctrl(self, value):
+        global _exposure_ctrl
+        _exposure_ctrl = value
+        print(f"Configurando exposure_ctrl a: {value}")
+
+    def set_aec2(self, value):
+        global _aec2
+        _aec2 = value
+        print(f"Configurando aec2 a: {value}")
+
+    def set_awb_gain(self, value):
+        global _awb_gain
+        _awb_gain = value
+        print(f"Configurando awb_gain a: {value}")
+
+    def set_agc_gain(self, value):
+        global _agc_gain
+        _agc_gain = value
+        print(f"Configurando agc_gain a: {value}")
+
+    def set_aec_value(self, value):
+        global _aec_value
+        _aec_value = value
+        print(f"Configurando aec_value a: {value}")
+
+    def set_dcw(self, value):
+        global _dcw
+        _dcw = value
+        print(f"Configurando dcw a: {value}")
+
+    def set_bpc(self, value):
+        global _bpc
+        _bpc = value
+        print(f"Configurando bpc a: {value}")
+
+    def set_wpc(self, value):
+        global _wpc
+        _wpc = value
+        print(f"Configurando wpc a: {value}")
+
+    def set_raw_gma(self, value):
+        global _raw_gma
+        _raw_gma = value
+        print(f"Configurando raw_gma a: {value}")
+
+    def set_lenc(self, value):
+        global _lenc
+        _lenc = value
+        print(f"Configurando lenc a: {value}")
 
 def init(*args, **kwargs):
     """

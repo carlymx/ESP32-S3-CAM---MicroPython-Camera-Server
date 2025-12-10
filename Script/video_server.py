@@ -1,6 +1,25 @@
-# video_server.py
-# Módulo para servir la imagen de la cámara en tiempo real vía servidor web
-# Implementa streaming de video y la interfaz principal para ver la cámara
+r"""
+  ______  _____ _____ ____ ___        _____ ____     _____          __  __ 
+ |  ____|/ ____|  __ \___ \__ \      / ____|___ \   / ____|   /\   |  \/  |
+ | |__  | (___ | |__) |__) | ) |____| (___   __) | | |       /  \  | \  / |
+ |  __|  \___ \|  ___/|__ < / /______\___ \ |__ <  | |      / /\ \ | |\/| |
+ | |____ ____) | |    ___) / /_      ____) |___) | | |____ / ____ \| |  | |
+ |______|_____/|_|   |____/____|    |_____/|____/   \_____/_/    \_\_|  |_|
+                                                                           
+                                                                           
+    ESP32-S3 CAM - VIDEO SERVER MODULE
+    ==================================
+    Version: 2.2.0
+    Fecha: 2025-12-09
+    Descripción: Módulo para servir la imagen de la cámara en tiempo real vía servidor web
+    Implementa streaming de video y la interfaz principal para ver la cámara
+    Cambios:
+        - V2.2.0: Compatibilidad con flujo de reinicio automático tras configuración WiFi
+        - V2.1.0: Corrección del problema de watchdog timer, actualización a nueva API,
+                  implementación de inicialización diferida
+        - V2.0.0: Actualización completa a la nueva API de cámara con métodos get/set
+        - V1.0.0: Versión inicial del módulo de video
+"""
 
 import socket
 import time
@@ -10,12 +29,17 @@ from led_controller import LEDController
 # Intentar importar la cámara real, sino usar simulación
 try:
     import camera
+    from camera import Camera, FrameSize, PixelFormat, GrabMode
     CAMERA_AVAILABLE = True
     print("Cámara real disponible")
+    # Create a camera instance for the real camera
+    cam = None
 except ImportError:
     import camera_mock as camera
     CAMERA_AVAILABLE = False
     print("Usando simulación de cámara")
+    # For the mock, we can use the module directly
+    cam = None
 
 class VideoServer:
     def __init__(self, port=80):
@@ -32,51 +56,71 @@ class VideoServer:
         Inicializa la cámara del ESP32-S3
         :return: True si la inicialización fue exitosa, False si no
         """
+        global cam
         try:
-            # Configurar la cámara con la mejor resolución disponible
-            camera.init(
-                0, 
-                format=camera.JPEG, 
-                fb_location=camera.PSRAM
+            # Create the camera instance with proper configuration
+            # Using the pin configuration from camera_pins module
+            import camera_pins
+            pins = camera_pins.OV2640_PINS
+
+            cam = Camera(
+                data_pins=[pins['pin_d0'], pins['pin_d1'], pins['pin_d2'], pins['pin_d3'],
+                          pins['pin_d4'], pins['pin_d5'], pins['pin_d6'], pins['pin_d7']],
+                pclk_pin=pins['pin_pclk'],
+                vsync_pin=pins['pin_vsync'],
+                href_pin=pins['pin_href'],
+                sda_pin=pins['pin_sscb_sda'],  # SDA pin for I2C communication
+                scl_pin=pins['pin_sscb_scl'],  # SCL pin for I2C communication
+                xclk_pin=pins['pin_xclk'],
+                xclk_freq=pins['xclk_freq_hz'],
+                powerdown_pin=pins['pin_pwdn'],
+                reset_pin=-1,  # Adjust if needed
+                pixel_format=PixelFormat.JPEG,
+                frame_size=FrameSize.VGA,  # 640x480
+                jpeg_quality=12,  # Good quality
+                fb_count=pins['fb_count'],
+                grab_mode=GrabMode.LATEST,
+                init=True
             )
-            
-            # Configurar resolución - usar la más alta disponible
-            camera.framesize(camera.FRAME_VGA)  # 640x480
-            
-            # Ajustes adicionales de la cámara
-            camera.quality(12)  # Buena calidad
-            camera.brightness(0)  # -2 a 2
-            camera.contrast(0)   # -2 a 2
-            camera.saturation(0) # -2 a 2
-            camera.special_effect(0)  # 0 a 6
-            camera.whitebalance(1)  # 0 = off, 1 = auto
-            camera.bar(0)  # Black/white bars
-            camera.grb_gain(0)  # Grb gain
-            camera.awb_gain(1)
-            camera.wb_mode(0)  # White balance mode
-            camera.ae_effect(0)  # Auto exposure effect
-            camera.bpc(0)  # Black pixel correction
-            camera.wpc(1)  # White pixel correction
-            camera.raw_gma(1)  # Raw gamma
-            camera.lenc(1)  # Lens correction
-            camera.hmirror(0)  # Horizontal mirror
-            camera.vflip(0)    # Vertical flip
-            camera.dcw(1)      # Downsize EN
-            camera.colorbar(0) # Color bar
-            
+
+            # Ajustes adicionales de la cámara usando los métodos get/set
+            cam.set_brightness(0)  # -2 a 2
+            cam.set_contrast(0)   # -2 a 2
+            cam.set_saturation(0) # -2 a 2
+            cam.set_special_effect(0)  # 0 a 6
+            #cam.set_whitebal(True)  # 0 = off, 1 = auto - assuming there's no set_whitebal, using set_awb
+            cam.set_colorbar(False)  # Black/white bars
+            # Note: Some functions may not be available in the new API; we'll use available ones
+            cam.set_awb_gain(True)
+            cam.set_wb_mode(0)  # White balance mode
+            #cam.set_ae_level(0)  # Auto exposure effect - not directly matching old API
+            cam.set_bpc(False)  # Black pixel correction
+            cam.set_wpc(True)  # White pixel correction
+            cam.set_raw_gma(True)  # Raw gamma
+            cam.set_lenc(True)  # Lens correction
+            cam.set_hmirror(False)  # Horizontal mirror
+            cam.set_vflip(False)    # Vertical flip
+            cam.set_dcw(True)      # Downsize EN
+            #cam.set_colorbar(False) # Color bar - already set above
+
             print("Cámara inicializada exitosamente")
             return True
         except Exception as e:
             print("Error al inicializar la cámara:", e)
+            import sys
+            sys.print_exception(e)
             return False
     
     def stop_camera(self):
         """
         Detiene la cámara y libera recursos
         """
+        global cam
         try:
-            camera.deinit()
-            print("Cámara detenida")
+            if cam is not None:
+                cam.deinit()
+                print("Cámara detenida")
+                cam = None
         except Exception as e:
             print("Error al detener la cámara:", e)
     
@@ -194,7 +238,12 @@ class VideoServer:
                     while self.is_streaming:
                         try:
                             # Capturar imagen de la cámara
-                            img = camera.capture()
+                            if CAMERA_AVAILABLE and cam is not None:
+                                img = cam.capture()
+                            else:
+                                # Use mock camera if real camera is not available
+                                img = camera.capture()
+
                             if img:
                                 # Enviar frame al cliente
                                 cl.send('--frame\r\n')

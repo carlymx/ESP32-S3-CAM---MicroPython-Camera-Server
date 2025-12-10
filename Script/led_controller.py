@@ -1,6 +1,23 @@
-# led_controller.py
-# Módulo para controlar el LED RGB en el pin 48 del ESP32-S3 CAM
-# Implementa códigos de colores para diferentes estados del sistema
+r"""
+  ______  _____ _____ ____ ___        _____ ____     _____          __  __ 
+ |  ____|/ ____|  __ \___ \__ \      / ____|___ \   / ____|   /\   |  \/  |
+ | |__  | (___ | |__) |__) | ) |____| (___   __) | | |       /  \  | \  / |
+ |  __|  \___ \|  ___/|__ < / /______\___ \ |__ <  | |      / /\ \ | |\/| |
+ | |____ ____) | |    ___) / /_      ____) |___) | | |____ / ____ \| |  | |
+ |______|_____/|_|   |____/____|    |_____/|____/   \_____/_/    \_\_|  |_|
+                                                                           
+                                                                           
+    ESP32-S3 CAM - LED CONTROLLER MODULE
+    ===================================
+    Version: 2.1.0
+    Fecha: 2025-12-09
+    Descripción: Módulo para controlar el LED RGB en el pin 48 del ESP32-S3 CAM
+    Implementa códigos de colores para diferentes estados del sistema
+    Cambios:
+        - V2.1.0: Actualizado para soportar indicación de reinicio automático durante configuración WiFi
+        - V2.0.0: Actualización a nueva API de NeoPixel
+        - V1.0.0: Versión inicial del módulo de control LED
+"""
 
 from machine import Pin
 from neopixel import NeoPixel

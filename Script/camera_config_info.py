@@ -1,5 +1,23 @@
-# camera_config_info.py
-# Información sobre la configuración de la cámara ESP32-S3 CAM
+r"""
+  ______  _____ _____ ____ ___        _____ ____     _____          __  __ 
+ |  ____|/ ____|  __ \___ \__ \      / ____|___ \   / ____|   /\   |  \/  |
+ | |__  | (___ | |__) |__) | ) |____| (___   __) | | |       /  \  | \  / |
+ |  __|  \___ \|  ___/|__ < / /______\___ \ |__ <  | |      / /\ \ | |\/| |
+ | |____ ____) | |    ___) / /_      ____) |___) | | |____ / ____ \| |  | |
+ |______|_____/|_|   |____/____|    |_____/|____/   \_____/_/    \_\_|  |_|
+                                                                           
+                                                                           
+    ESP32-S3 CAM - CAMERA CONFIG INFO MODULE
+    ========================================
+    Version: 2.1.0
+    Fecha: 2025-12-06
+    Descripción: Información sobre la configuración de la cámara ESP32-S3 CAM
+    Proporciona información sobre la configuración de pines y solución de problemas
+    Cambios:
+        - V2.1.0: Actualización de la detección de nueva API
+        - V2.0.0: Actualización completa a la nueva API de cámara
+        - V1.0.0: Versión inicial del módulo de información
+"""
 
 """
 Este archivo proporciona información sobre la configuración de pines típica para
@@ -72,6 +90,11 @@ def check_camera_support():
     try:
         import camera
         print("Módulo de cámara disponible")
+        # Check for the new API
+        if hasattr(camera, 'Camera'):
+            print("API de cámara compatible detectada (nueva API)")
+        else:
+            print("API de cámara antigua detectada (posiblemente incompatible)")
         return True
     except ImportError:
         print("Módulo de cámara no disponible en esta instalación de MicroPython")
