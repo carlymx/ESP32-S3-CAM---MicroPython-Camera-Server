@@ -14,6 +14,8 @@ r"""
     Descripción: Módulo para gestionar la conexión WiFi del ESP32-S3 CAM
     Implementa modo AP para configuración inicial y modo Station para conexión normal
     Cambios:
+        - V2.1.2: Mejora en el manejo del WDT durante la conexión WiFi
+        - V2.1.1: Implementación de alimentación regular al watchdog timer para evitar reinicios
         - V2.1.0: Implementación de reinicio automático tras guardar credenciales,
                    mejora en el manejo de caracteres especiales en SSID,
                    aumento del tiempo de espera a 15 segundos con cuenta regresiva
@@ -26,7 +28,7 @@ import socket
 import ure
 import time
 import json
-from machine import reset
+from machine import reset, idle
 from led_controller import LEDController
 
 
@@ -96,8 +98,8 @@ class WiFiManager:
                 # Obtener el estado de configuración, por defecto False si no existe
                 configured = config.get('configured', False)
                 return configured  # Retornar el estado para saber si hay credenciales válidas
-        except Exception as e:
-            print("No se pudieron cargar las credenciales WiFi:", e)
+        except (OSError, ValueError) as e:
+            print("No se pudieron cargar las credenciales WiFi (archivo no encontrado o corrupto):", e)
             return False
     
     def save_credentials(self, ssid, password):
@@ -115,7 +117,7 @@ class WiFiManager:
             with open(self.ssid_file, 'w') as f:
                 json.dump(config, f)
             print("Credenciales WiFi guardadas exitosamente")
-        except Exception as e:
+        except OSError as e:
             print("Error al guardar las credenciales WiFi:", e)
     
     def connect_to_wifi(self, ssid=None, password=None):
@@ -133,22 +135,22 @@ class WiFiManager:
             if not self.load_credentials():
                 print("No se encontraron credenciales guardadas")
                 return False
-        
+
         if not self.ssid or not self.password:
             print("No hay credenciales de WiFi disponibles")
             return False
-        
+
         # Desactivar AP mode si está activo
         if self.ap_if.active():
             self.ap_if.active(False)
-        
+
         # Configurar y activar el modo Station
         self.sta_if.active(True)
         self.sta_if.connect(self.ssid, self.password)
-        
+
         # Indicar estado de conexión con el LED
         self.led.modo_station()
-        
+
         # Esperar a que se conecte
         max_wait = 20
         while max_wait > 0:
@@ -159,7 +161,9 @@ class WiFiManager:
             max_wait -= 1
             print("Esperando conexión... Restan:", max_wait, "segundos")
             time.sleep(1)
-        
+            # Alimentar al WDT durante la espera
+            idle()
+
         print("No se pudo conectar a la red WiFi")
         self.led.error()
         return False
@@ -212,7 +216,7 @@ class WiFiManager:
                     'security': security
                 })
             return wifi_list
-        except Exception as e:
+        except OSError as e:
             print("Error al escanear redes WiFi:", e)
             return []
         finally:
@@ -243,92 +247,15 @@ class WiFiManager:
             security_icon = "🔒" if net['security'] > 0 else "🔓"
             wifi_options += f'<option value="{ssid}">{security_icon} {ssid} (Señal: {rssi} dBm)</option>'
 
-        # Página HTML para configuración de WiFi
-        html = f"""<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Configuración WiFi - ESP32-S3 CAM</title>
-    <style>
-        body {{
-            font-family: Arial, sans-serif;
-            background-color: #121212;
-            color: #e0e0e0;
-            text-align: center;
-            margin: 0;
-            padding: 20px;
-        }}
-        .container {{
-            max-width: 500px;
-            margin: 0 auto;
-            background-color: #1e1e1e;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-        }}
-        h1 {{
-            color: #bb86fc;
-        }}
-        input[type="text"], input[type="password"], select {{
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            box-sizing: border-box;
-            background-color: #2d2d2d;
-            color: #e0e0e0;
-            border: 1px solid #444;
-            border-radius: 5px;
-        }}
-        button {{
-            background-color: #bb86fc;
-            color: white;
-            padding: 14px 20px;
-            margin: 10px 0;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            width: 100%;
-            font-size: 16px;
-        }}
-        button:hover {{
-            background-color: #9a67ea;
-        }}
-        .status {{
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #2d2d2d;
-            border-radius: 5px;
-        }}
-        .refresh-btn {{
-            background-color: #6200ea;
-            margin-top: 5px;
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Configuración WiFi - ESP32-S3 CAM</h1>
-        <form method="POST" action="/configure">
-            <label for="ssid">Selecciona una red WiFi:</label>
-            <select id="ssid" name="ssid" required>
-                <option value="" disabled selected>Selecciona una red...</option>
-                {wifi_options}
-            </select>
-            <p>o introduce manualmente:</p>
-            <input type="text" id="ssid_manual" name="ssid_manual" placeholder="Nombre de la red (SSID)">
-            <label for="password">Contraseña:</label>
-            <input type="password" id="password" name="password" required placeholder="Contraseña de la red">
-            <button type="submit">Conectar</button>
-        </form>
-        <button class="refresh-btn" onclick="location.reload()">Actualizar redes disponibles</button>
-        <div class="status">
-            <p>Conecta tu dispositivo a esta red WiFi:</p>
-            <p><strong>SSID:</strong> ESP32-CAM-Setup</p>
-            <p><strong>Contraseña:</strong> 123456789</p>
-        </div>
-    </div>
-</body>
-</html>"""
+        # Cargar plantilla HTML para el formulario de configuración
+        html = ""
+        try:
+            with open('html/wifi_form.html', 'r') as f:
+                html_template = f.read()
+            html = html_template.replace('{{wifi_options}}', wifi_options)
+        except Exception as e:
+            print("Error: No se pudo cargar la plantilla HTML (html/wifi_form.html).", e)
+            html = "<html><head><title>Error</title></head><body><h1>Error 500</h1><p>No se pudo cargar la interfaz de usuario. Verifique que el archivo 'html/wifi_form.html' exista.</p></body></html>"
 
         while True:
             try:
@@ -337,14 +264,14 @@ class WiFiManager:
                 request = cl.recv(1024)
                 request = request.decode('utf-8')
                 print('Solicitud recibida:', request)
-                
+
                 # Extraer la ruta de la solicitud
                 route = ure.search("(?:GET|POST) /(.*?)(?:\\?| HTTP)", request)
                 if route:
                     path = route.group(1)
                 else:
                     path = ""
-                
+
                 # Procesar la solicitud
                 if path == "configure" and request.startswith("POST"):
                     # Extraer credenciales de la solicitud POST
@@ -373,16 +300,15 @@ class WiFiManager:
                             # Escapar caracteres especiales en el SSID para evitar problemas en HTML
                             escaped_ssid = ssid.replace('"', '&quot;').replace("'", "&#39;").replace('<', '&lt;').replace('>', '&gt;')
 
-                            # Usar un método más seguro para construir la respuesta HTML
-                            html_response = ('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Configuración WiFi - ESP32-S3 CAM</title>'
-                                             '<style>body{font-family:Arial,sans-serif;background-color:#121212;color:#e0e0e0;text-align:center;margin:0;padding:20px;}'
-                                             '.container{max-width:500px;margin:0 auto;background-color:#1e1e1e;padding:30px;border-radius:10px;box-shadow:0 0 20px rgba(0,0,0,0.5);}'
-                                             'h1{color:#bb86fc;}.status{margin-top:20px;padding:10px;background-color:#2d2d2d;border-radius:5px;}</style>'
-                                             '<script>setTimeout(function(){ window.location.href = "/restart"; }, 15000);</script></head>'
-                                             '<body><div class="container"><h1>Configuración WiFi</h1><div class="status">'
-                                             '<p>Credenciales guardadas exitosamente</p>'
-                                             '<p>Conectando a la red: ' + escaped_ssid + '</p>'
-                                             '<p>El dispositivo se reiniciará en 15 segundos...</p></div></body></html>')
+                            html_response = ""
+                            try:
+                                with open('html/wifi_success.html', 'r') as f:
+                                    html_template = f.read()
+                                html_response = html_template.replace('{{ssid}}', escaped_ssid)
+                            except Exception as e:
+                                print("Error: No se pudo cargar la plantilla HTML (html/wifi_success.html).", e)
+                                html_response = "<html><body><h1>Credenciales guardadas</h1><p>Conectando a " + escaped_ssid + ". El dispositivo se reiniciará.</p></body></html>"
+
 
                             cl.send('HTTP/1.1 200 OK\r\n')
                             cl.send('Content-Type: text/html\r\n')
@@ -394,11 +320,18 @@ class WiFiManager:
                             time.sleep(15)
                             reset()
                         else:
-                            # Si faltan credenciales, regresar a la página con un mensaje de error
+                            html_error = ""
+                            try:
+                                with open('html/wifi_error.html', 'r') as f:
+                                    html_error = f.read()
+                            except Exception as e:
+                                print("Error: No se pudo cargar la plantilla HTML (html/wifi_error.html).", e)
+                                html_error = "<html><body><h1>Error 400</h1><p>Faltan credenciales. Por favor, vuelva e inténtelo de nuevo.</p></body></html>"
+                            
                             cl.send('HTTP/1.1 400 BAD REQUEST\r\n')
                             cl.send('Content-Type: text/html\r\n')
                             cl.send('Connection: close\r\n\r\n')
-                            cl.send('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Configuración WiFi - ESP32-S3 CAM</title><style>body{font-family:Arial,sans-serif;background-color:#121212;color:#e0e0e0;text-align:center;margin:0;padding:20px;}.container{max-width:500px;margin:0 auto;background-color:#1e1e1e;padding:30px;border-radius:10px;box-shadow:0 0 20px rgba(0,0,0,0.5);}h1{color:#bb86fc;}.status{margin-top:20px;padding:10px;background-color:#2d2d2d;border-radius:5px;}.error{{color:#ff5252;}}</style></head><body><div class="container"><h1>Configuración WiFi - ESP32-S3 CAM</h1><div class="error"><p>Por favor selecciona una red WiFi o ingrésala manualmente</p></div><button onclick="history.back()">Volver</button></div></body></html>')
+                            cl.send(html_error)
                             cl.close()
                 elif path == "configure" and request.startswith("GET"):
                     # Si se accede a /configure vía GET después de haber guardado las credenciales,
@@ -408,11 +341,18 @@ class WiFiManager:
                     cl.send('Connection: close\r\n\r\n')
                     cl.close()
                 elif path == "restart":
-                    # Enviar página de confirmación de reinicio
+                    html_restarting = ""
+                    try:
+                        with open('html/restarting.html', 'r') as f:
+                            html_restarting = f.read()
+                    except Exception as e:
+                        print("Error: No se pudo cargar la plantilla HTML (html/restarting.html).", e)
+                        html_restarting = "<html><body><h1>Reiniciando...</h1></body></html>"
+                    
                     cl.send('HTTP/1.1 200 OK\r\n')
                     cl.send('Content-Type: text/html\r\n')
                     cl.send('Connection: close\r\n\r\n')
-                    cl.send('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reinicio - ESP32-S3 CAM</title><style>body{font-family:Arial,sans-serif;background-color:#121212;color:#e0e0e0;text-align:center;margin:0;padding:20px;}.container{max-width:500px;margin:0 auto;background-color:#1e1e1e;padding:30px;border-radius:10px;box-shadow:0 0 20px rgba(0,0,0,0.5);}h1{color:#bb86fc;}.status{margin-top:20px;padding:10px;background-color:#2d2d2d;border-radius:5px;}</style></head><body><div class="container"><h1>Reinicio del dispositivo</h1><div class="status"><p>Reiniciando ESP32-S3...</p><p>Por favor espere unos momentos.</p></div></body></html>')
+                    cl.send(html_restarting)
                     cl.close()
 
                     # Reiniciar el dispositivo después de enviar la respuesta
@@ -426,9 +366,27 @@ class WiFiManager:
                     cl.send(html)
 
                 cl.close()
+
+                # Alimentar al WDT para evitar reinicios
+                idle()
+            except (OSError, ValueError) as e: # OSError para errores de red, ValueError para parsing
+                print('Error de red o procesamiento en el servidor web:', e)
+                try:
+                    cl.close()
+                except:
+                    pass
+
+                # Alimentar al WDT para evitar reinicios incluso en caso de error
+                idle()
             except Exception as e:
-                print('Error en el servidor web:', e)
-                cl.close()
+                print('Error inesperado en el servidor web:', e)
+                try:
+                    cl.close()
+                except:
+                    pass
+
+                # Alimentar al WDT para evitar reinicios incluso en caso de error
+                idle()
     
     def is_connected(self):
         """
@@ -489,5 +447,5 @@ class WiFiManager:
                 json.dump(config, f)
 
             print("Estado de configuración limpiado")
-        except Exception as e:
+        except OSError as e:
             print("Error al limpiar el estado de configuración:", e)

@@ -1,35 +1,46 @@
-from machine import Pin
-from neopixel import NeoPixel
+from led_controller import LEDController
 import time
 
-# Definimos el pin GPIO 48 para el LED RGB NeoPixel
-PIN_NUM = 48
-NUM_PIXELS = 1
-# Inicializamos el objeto NeoPixel
-np_pin = Pin(PIN_NUM, Pin.OUT)
-np = NeoPixel(np_pin, NUM_PIXELS)
+print("Iniciando test del LED RGB usando LEDController...")
 
-# Función auxiliar para establecer el color usando formato hexadecimal (0xRRGGBB)
-def set_rgb_hex(hex_color):
-    # Extraemos los componentes R, G, B del valor hexadecimal
-    r = (hex_color >> 16) & 0xFF
-    g = (hex_color >> 8) & 0xFF
-    b = hex_color & 0xFF
-    
-    # Asignamos el color al primer (y único) pixel [0]
-    np[0] = (r, g, b)
-    # Escribimos el color en el hardware del LED
-    np.write()
+# Inicializamos el objeto LEDController
+led = LEDController()
 
-# El equivalente a pycom.heartbeat(False) para evitar comportamientos por defecto
-# No es estrictamente necesario en MicroPython genérico, pero lo mantenemos conceptualmente.
-
-print("Cambiando colores del LED RGB en Pin 48...")
-
-while True:
-    set_rgb_hex(0xFF0000)  # Rojo
+try:
+    print("Probando color Rojo...")
+    led.error()  # Rojo
     time.sleep(1)
-    set_rgb_hex(0x00FF00)  # Verde
+
+    print("Probando color Verde (Éxito)...")
+    led.success()  # Verde
     time.sleep(1)
-    set_rgb_hex(0x0000FF)  # Azul
+
+    print("Probando color Azul (Inicial)...")
+    led.inicial()  # Azul
     time.sleep(1)
+
+    print("Probando color Amarillo (Advertencia)...")
+    led.warning() # Amarillo
+    time.sleep(1)
+
+    print("Probando color Blanco (Conectado a AP)...")
+    led.modo_ap() # Blanco
+    time.sleep(1)
+
+    print("Probando color Cian (Transmitiendo)...")
+    led.transmitiendo() # Cian
+    time.sleep(1)
+
+    print("Apagando LED...")
+    led.off()
+    time.sleep(0.5)
+
+    print("Test del LED RGB finalizado exitosamente.")
+
+except Exception as e:
+    print(f"Error durante el test del LED RGB: {e}")
+    led.error() # Indicar error con rojo
+    time.sleep(2)
+finally:
+    led.off() # Asegurarse de apagar el LED al finalizar
+

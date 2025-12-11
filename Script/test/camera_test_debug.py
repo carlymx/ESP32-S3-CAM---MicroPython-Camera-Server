@@ -123,131 +123,29 @@ def test_camera_initialization():
         print_log("ADVERTENCIA: No se detectó comunicación I2C, la cámara probablemente no esté conectada o funcione", "WARNING")
 
     try:
-        import camera
-        # Verificar primero si es la nueva API
-        if not hasattr(camera, 'Camera'):
-            print_log("No se detectó la nueva API de cámara, omitiendo prueba de inicialización", "WARNING")
-            return False
+        from camera_utils import init_camera
+        print_log("Intentando inicializar cámara usando la función centralizada...", "INFO")
+        
+        start_init = time.ticks_ms()
+        cam_instance = init_camera()
+        init_time = time.ticks_diff(time.ticks_ms(), start_init)
 
-        from camera import Camera, FrameSize, PixelFormat, GrabMode
-        print_log("Usando nueva API de cámara", "SUCCESS")
-
-        # Intentar inicializar la cámara con configuración mínima para evitar problemas de watchdog
-        print_log("Intentando inicializar cámara con configuración mínima...")
-
-        try:
-            # Create the camera instance with proper configuration
-            import camera_pins
-            pins = camera_pins.OV2640_PINS
-
-            # Añadir un pequeño retraso antes de la inicialización para evitar problemas de watchdog
-            time.sleep_ms(50)
-
-            # Crear la instancia de cámara sin inicializar inmediatamente
-            print_log("Creando instancia de cámara...", "INFO")
-
-            # Crear la cámara con una configuración muy reducida para evitar watchdog
-            # Adaptada para trabajar mejor con OV5640 si es necesario
-            try:
-                cam_instance = Camera(
-                    data_pins=[pins['pin_d0'], pins['pin_d1'], pins['pin_d2'], pins['pin_d3'],
-                              pins['pin_d4'], pins['pin_d5'], pins['pin_d6'], pins['pin_d7']],
-                    pclk_pin=pins['pin_pclk'],
-                    vsync_pin=pins['pin_vsync'],
-                    href_pin=pins['pin_href'],
-                    sda_pin=pins['pin_sscb_sda'],  # SDA pin for I2C communication
-                    scl_pin=pins['pin_sscb_scl'],  # SCL pin for I2C communication
-                    xclk_pin=pins['pin_xclk'],
-                    xclk_freq=pins['xclk_freq_hz'],
-                    powerdown_pin=pins['pin_pwdn'],
-                    reset_pin=-1,  # Adjust if needed - puede que -1 funcione mejor que -1 para OV5640
-                    pixel_format=PixelFormat.JPEG,
-                    frame_size=FrameSize.QQVGA,  # Resolución mínima - OV5640 puede necesitar QQVGA inicialmente
-                    jpeg_quality=10,  # Calidad mínima
-                    fb_count=1,  # Frame buffer único - importante para OV5640
-                    grab_mode=GrabMode.WHEN_EMPTY,  # Modo menos intensivo
-                    init=False  # No inicializar inmediatamente
-                )
-
-                print_log("Instancia de cámara creada. Ahora intentando inicialización...", "INFO")
-
-                # Intentar inicializar con manejo de timeout mejorado
-                # La inicialización puede tomar más tiempo con OV5640
-                try:
-                    print_log("Iniciando cámara - puede tomar varios segundos...", "INFO")
-                    start_init = time.ticks_ms()
-                    cam_instance.init()
-                    init_time = time.ticks_diff(time.ticks_ms(), start_init)
-                    print_log(f"Cámara inicializada exitosamente en {init_time}ms", "SUCCESS")
-                except Exception as init_error:
-                    print_log(f"Error en la inicialización: {init_error}", "ERROR")
-                    # Intentar con un delay adicional y reintento
-                    time.sleep_ms(500)  # Mayor delay para OV5640
-                    try:
-                        start_init = time.ticks_ms()
-                        cam_instance.init()
-                        init_time = time.ticks_diff(time.ticks_ms(), start_init)
-                        print_log(f"Cámara inicializada después de reintento en {init_time}ms", "SUCCESS")
-                    except Exception as retry_error:
-                        print_log(f"Error tras reintento: {retry_error}", "ERROR")
-                        return False
-
-                # Probar solo configuraciones básicas que sean seguras para OV5640
-                try:
-                    time.sleep_ms(100)  # Mayor delay para que la cámara se estabilice
-                    # Solo probar una configuración simple
-                    cam_instance.set_quality(10)  # Calidad menor
-                    print_log("Configuración de calidad aplicada", "SUCCESS")
-
-                    # Verificar si es OV5640 probando la resolución máxima
-                    max_size = cam_instance.get_max_frame_size()
-                    print_log(f"Resolución máxima soportada por el sensor: {max_size}", "INFO")
-                except Exception as e:
-                    print_log(f"Error al aplicar configuraciones básicas: {e}", "ERROR")
-
-                # Intentar capturar una imagen o no, dependiendo del tiempo
-                try:
-                    print_log("Intentando captura de imagen...")
-                    # Añadir un retraso antes de capturar para dar tiempo a la cámara
-                    time.sleep_ms(250)  # Mayor delay para OV5640
-
-                    # Liberar algo de memoria antes de capturar
-                    gc.collect()
-
-                    # Intentar captura con timeout
-                    img = cam_instance.capture()
-                    if img:
-                        print_log(f"Imagen capturada exitosamente, tamaño: {len(img)} bytes", "SUCCESS")
-                    else:
-                        print_log("No se pudo capturar imagen", "WARNING")
-                except Exception as e:
-                    print_log(f"Error al capturar imagen: {e}", "ERROR")
-
-                # Desinicializar la cámara
-                try:
-                    print_log("Desinicializando cámara...", "INFO")
-                    cam_instance.deinit()
-                    print_log("Cámara desinicializada exitosamente", "SUCCESS")
-                except Exception as e:
-                    print_log(f"Error al desinicializar cámara: {e}", "ERROR")
-
-                # Añadir un pequeño retraso después de desinicializar para evitar problemas de watchdog
-                time.sleep_ms(100)
-
-                return True
-            except MemoryError:
-                print_log("Error de memoria durante la creación de la instancia de cámara", "ERROR")
-                return False
-            except Exception as creation_error:
-                print_log(f"Error durante la creación de la instancia de cámara: {creation_error}", "ERROR")
-                import sys
-                sys.print_exception(creation_error)
-                return False
-
-        except Exception as e:
-            print_log(f"No se pudo inicializar la cámara: {e}", "ERROR")
-            import sys
-            sys.print_exception(e)
+        if cam_instance:
+            print_log(f"Cámara inicializada exitosamente en {init_time}ms", "SUCCESS")
+            
+            # Prueba de captura rápida opcional
+            print_log("Intentando captura de imagen...", "INFO")
+            img = cam_instance.capture()
+            if img:
+                print_log(f"Imagen capturada exitosamente, tamaño: {len(img)} bytes", "SUCCESS")
+            else:
+                print_log("No se pudo capturar imagen", "WARNING")
+            
+            cam_instance.deinit()
+            print_log("Cámara desinicializada.", "INFO")
+            return True
+        else:
+            print_log("Fallo al inicializar la cámara usando la función centralizada.", "ERROR")
             return False
 
     except ImportError:
@@ -270,51 +168,15 @@ def test_memory():
 
     # Simular operación de cámara si está disponible
     try:
-        import camera
-        # Verificar primero si es la nueva API
-        if hasattr(camera, 'Camera'):
-            from camera import Camera, FrameSize, PixelFormat, GrabMode
+        from camera_utils import init_camera
+        
+        # Usar la función de inicialización centralizada
+        cam_instance = init_camera(initial_setup=False)
 
-            # Añadir un pequeño retraso antes de la inicialización para evitar problemas de watchdog
-            time.sleep_ms(100)
-
-            # Create the camera instance with proper configuration
-            import camera_pins
-            pins = camera_pins.OV2640_PINS
-
-            # Alimentar el watchdog antes de crear la cámara
-            import machine
-            machine.idle()
-
-            # Primero crear la instancia sin inicializar para evitar problemas de watchdog
-            cam_instance = Camera(
-                data_pins=[pins['pin_d0'], pins['pin_d1'], pins['pin_d2'], pins['pin_d3'],
-                          pins['pin_d4'], pins['pin_d5'], pins['pin_d6'], pins['pin_d7']],
-                pclk_pin=pins['pin_pclk'],
-                vsync_pin=pins['pin_vsync'],
-                href_pin=pins['pin_href'],
-                sda_pin=pins['pin_sscb_sda'],  # SDA pin for I2C communication
-                scl_pin=pins['pin_sscb_scl'],  # SCL pin for I2C communication
-                xclk_pin=pins['pin_xclk'],
-                xclk_freq=pins['xclk_freq_hz'],
-                powerdown_pin=pins['pin_pwdn'],
-                reset_pin=-1,  # Adjust if needed
-                pixel_format=PixelFormat.JPEG,
-                frame_size=FrameSize.QQVGA,  # Resolución menor para reducir carga
-                jpeg_quality=10,  # Calidad menor
-                fb_count=1,  # Frame buffer menor
-                grab_mode=GrabMode.WHEN_EMPTY,  # Modo menos intensivo
-                init=False  # No inicializar inmediatamente
-            )
-
-            # Ahora sí inicializar el objeto de cámara
-            cam_instance.init()
-
+        if cam_instance:
             # Añadir un retraso antes de capturar para dar tiempo a la cámara
             time.sleep_ms(200)
-            # Alimentar el watchdog
-            machine.idle()
-
+            
             # Capturar imagen
             img = cam_instance.capture()
 
@@ -324,15 +186,15 @@ def test_memory():
             # Desinicializar
             cam_instance.deinit()
 
-            # Añadir un pequeño retraso después de desinicializar para evitar problemas de watchdog
+            # Añadir un pequeño retraso después de desinicializar
             time.sleep_ms(100)
         else:
-            print_log("No se detectó la nueva API de cámara, omitiendo prueba de memoria con cámara", "WARNING")
+            print_log("No se pudo inicializar la cámara para la prueba de memoria", "WARNING")
 
-    except ImportError:
-        print_log("Módulo 'camera' no disponible, omitiendo prueba de memoria con cámara", "WARNING")
+    except (ImportError, RuntimeError) as e:
+        print_log(f"Error o módulo no disponible en prueba de memoria con cámara: {e}", "ERROR")
     except Exception as e:
-        print_log(f"Error en prueba de memoria con cámara: {e}", "ERROR")
+        print_log(f"Error inesperado en prueba de memoria con cámara: {e}", "ERROR")
 
     # Medir memoria después
     gc.collect()
@@ -343,44 +205,46 @@ def test_memory():
 
 def test_mock_camera():
     """
-    Prueba el módulo de simulación de cámara
+    Prueba el módulo de simulación de cámara refactorizado (orientado a objetos)
     """
-    print_log("=== INICIANDO PRUEBA DE CÁMARA SIMULADA ===")
+    print_log("=== INICIANDO PRUEBA DE CÁMARA SIMULADA (API Objeto) ===")
     
     try:
-        import camera_mock as mock_camera
+        import camera_mock
         print_log("Módulo de cámara simulada importado exitosamente", "SUCCESS")
         
-        # Probar funciones de la cámara simulada
+        # Probar la clase Camera de la cámara simulada
         try:
-            result = mock_camera.init()
-            print_log(f"Resultado de init(): {result}", "SUCCESS")
-        except Exception as e:
-            print_log(f"Error al llamar a init(): {e}", "ERROR")
-        
-        try:
-            mock_camera.quality(12)
-            print_log("Calidad configurada exitosamente", "SUCCESS")
-        except Exception as e:
-            print_log(f"Error al configurar calidad: {e}", "ERROR")
-        
-        try:
-            img = mock_camera.capture()
-            print_log(f"Imagen simulada capturada, tamaño: {len(img)} bytes", "SUCCESS")
-        except Exception as e:
-            print_log(f"Error al capturar imagen simulada: {e}", "ERROR")
-        
-        try:
-            mock_camera.deinit()
+            cam_sim = camera_mock.Camera()
+            
+            result = cam_sim.init()
+            print_log(f"Resultado de cam_sim.init(): {result}", "SUCCESS")
+            
+            cam_sim.set_quality(12)
+            quality_val = cam_sim.get_quality()
+            print_log(f"Calidad configurada a 12, valor obtenido: {quality_val}", "SUCCESS")
+
+            img = cam_sim.capture()
+            if img:
+                print_log(f"Imagen simulada capturada, tamaño: {len(img)} bytes", "SUCCESS")
+            else:
+                print_log("La captura de imagen simulada no devolvió datos", "ERROR")
+
+            cam_sim.deinit()
             print_log("Cámara simulada desinicializada exitosamente", "SUCCESS")
+            
+        except RuntimeError as e: # More specific for mock camera operation errors
+            print_log(f"Error de tiempo de ejecución en la instancia de cámara simulada: {e}", "ERROR")
+            return False
         except Exception as e:
-            print_log(f"Error al desinicializar cámara simulada: {e}", "ERROR")
+            print_log(f"Error inesperado durante la prueba de la instancia de cámara simulada: {e}", "ERROR")
+            return False
         
         return True
     except ImportError as e:
         print_log(f"No se pudo importar módulo de cámara simulada: {e}", "ERROR")
         return False
-    except Exception as e:
+    except (ImportError, RuntimeError) as e:
         print_log(f"Error en la prueba de cámara simulada: {e}", "ERROR")
         return False
 
@@ -556,8 +420,14 @@ def test_i2c_scan():
                 else:
                     print_log(f"No se encontraron dispositivos I2C con {config['name']}", "INFO")
 
+            except OSError as e:
+                print_log(f"Error de E/S o hardware con I2C en {config['name']}: {e}", "ERROR")
+                continue  # Probar la siguiente configuración
+            except ValueError as e:
+                print_log(f"Error de valor (configuración de pines I2C) con I2C en {config['name']}: {e}", "ERROR")
+                continue  # Probar la siguiente configuración
             except Exception as e:
-                print_log(f"Error con I2C en {config['name']}: {e}", "ERROR")
+                print_log(f"Error inesperado con I2C en {config['name']}: {e}", "ERROR")
                 continue  # Probar la siguiente configuración
 
         print_log("No se encontraron dispositivos I2C en ninguna configuración", "WARNING")
@@ -566,8 +436,11 @@ def test_i2c_scan():
     except ImportError as e:
         print_log(f"Error al importar módulos I2C: {e}", "ERROR")
         return False
+    except OSError as e:
+        print_log(f"Error de E/S o hardware general en la prueba de comunicación I2C: {e}", "ERROR")
+        return False
     except Exception as e:
-        print_log(f"Error en la prueba de comunicación I2C: {e}", "ERROR")
+        print_log(f"Error inesperado en la prueba de comunicación I2C: {e}", "ERROR")
         return False
 
 def run_full_camera_test():

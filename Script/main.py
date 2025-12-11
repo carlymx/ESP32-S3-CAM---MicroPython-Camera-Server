@@ -14,13 +14,15 @@ r"""
     Descripción: Archivo principal del proyecto ESP32-S3 CAM
     Integra todos los módulos: control de LED, WiFi manager, servidor de video y configuración
     Cambios:
+        - V2.1.2: Actualización para reflejar refactorización del bucle de streaming en video server
+        - V2.1.1: Implementación de alimentación regular al watchdog timer para evitar reinicios
         - V2.1.0: Integración con nueva API de cámara, corrección de inicialización
         - V2.0.0: Actualización completa a la nueva API de cámara
         - V1.0.0: Versión inicial del proyecto
 """
 
 import time
-from machine import reset
+from machine import reset, idle
 from led_controller import LEDController
 from wifi_manager import WiFiManager
 from video_server import VideoServer, CAMERA_AVAILABLE
@@ -56,12 +58,19 @@ def main():
         
         # Inicializar servidor de video
         video_server = VideoServer()
-        
+
         # Iniciar el servidor de video
+        # El servidor puede ejecutarse indefinidamente, por lo que no debería retornar
+        # a menos que ocurra un error o se interrumpa
         video_server.run_server()
         
+    except (OSError, RuntimeError) as e:
+        print(f"Error de operación (sistema/cámara) en la aplicación principal: {e}")
+        led.error()  # Indicar error con LED rojo
+        time.sleep(3)  # Mantener el indicador de error por 3 segundos
+        reset()  # Reiniciar el dispositivo después de un error
     except Exception as e:
-        print("Error en la aplicación principal:", e)
+        print(f"Error inesperado en la aplicación principal: {e}")
         led.error()  # Indicar error con LED rojo
         time.sleep(3)  # Mantener el indicador de error por 3 segundos
         reset()  # Reiniciar el dispositivo después de un error

@@ -14,6 +14,7 @@ r"""
     Descripción: Módulo para controlar el LED RGB en el pin 48 del ESP32-S3 CAM
     Implementa códigos de colores para diferentes estados del sistema
     Cambios:
+        - V2.1.1: Actualización de versión para reflejar cambios en el sistema relacionados con WDT
         - V2.1.0: Actualizado para soportar indicación de reinicio automático durante configuración WiFi
         - V2.0.0: Actualización a nueva API de NeoPixel
         - V1.0.0: Versión inicial del módulo de control LED

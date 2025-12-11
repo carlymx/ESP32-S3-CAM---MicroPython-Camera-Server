@@ -1,8 +1,8 @@
 ## Variables de entorno:
 
 - Habla, piensa y Escribe, siempre en castellano.
-- tomaras como referencia el archivo ./micropython-camera-API-documentation.md
-- En cada cambio actualizaras si es necesario el archivo QWEN.md
+- Tomaras como referencia el archivo ./micropython-camera-API-documentation.md
+- En cada cambio actualizaras si es necesario el archivo ./QWEN.md (este archivo)
 
 # MicroPython Camera ESP32-S3 Project
 
@@ -131,3 +131,49 @@ The project uses the new MicroPython Camera API with:
 - `camera_mock.py`: Mock camera implementation
 - `micropython-camera-API-documentation.md`: Comprehensive camera API documentation
 - `WIFI_CONFIGURATION_PROCESS.md`: Detailed documentation about WiFi configuration process
+
+## Soluciones Implementadas
+
+### Watchdog Timer (WDT) Problem
+
+Se ha resuelto el problema de reinicios constantes del ESP32-S3 causados por el Watchdog Timer (WDT).
+
+- **Causa Raíz**: La operación de inicialización de la cámara (`camera.init()` o `Camera(...)`) consume una cantidad de tiempo considerable, superior al timeout por defecto del WDT. Esto provocaba que el sistema se reiniciara antes de poder completar el arranque del servidor de vídeo.
+- **Solución Implementada**: Se ha modificado la función de inicialización centralizada `init_camera()` en el nuevo módulo `camera_utils.py`. La solución consiste en:
+  1. Importar la clase `WDT` desde el módulo `machine`.
+  2. Antes de llamar al constructor de la cámara, se crea una instancia del WDT con un tiempo de espera extendido de 10 segundos (`WDT(timeout=10000)`).
+  3. Inmediatamente después de que la inicialización de la cámara finaliza, se "alimenta" al watchdog con `wdt.feed()`. Esto restablece el temporizador y confirma que el sistema no está bloqueado.
+- **Resultado**: El sistema ahora tiene tiempo suficiente para inicializar el hardware de la cámara sin ser interrumpido por el WDT, eliminando el bucle de reinicios.
+
+## Mejoras y Refactorización del Proyecto (Diciembre 2025)
+
+A partir de un análisis detallado (`ANALISIS_PROYECTO.md`), se han implementado las siguientes mejoras significativas para aumentar la robustez, mantenibilidad y calidad del código:
+
+1. **Corrección de Error Crítico en Pines I2C**:
+   
+   - Se corrigió un error en `camera_config_server.py` donde los pines I2C (`sda`, `scl`) estaban asignados incorrectamente, lo que impedía la correcta configuración del sensor de la cámara. Ahora utilizan los pines correctos definidos en `camera_pins.py`.
+
+2. **Externalización de la Interfaz Web (HTML)**:
+   
+   - Todo el código HTML que estaba incrustado como cadenas de texto en los scripts de Python (`video_server.py`, `camera_config_server.py`, `wifi_manager.py`) ha sido movido a archivos `.html` independientes.
+   - Estos archivos ahora residen en el nuevo directorio `Script/html/`.
+   - Los scripts de Python cargan dinámicamente estas plantillas, haciendo el código mucho más limpio, legible y fácil de mantener.
+
+3. **Centralización de la Lógica de Inicialización de la Cámara**:
+   
+   - Se creó un nuevo módulo `Script/camera_utils.py` que contiene una función única y centralizada `init_camera()`.
+   - Todos los demás módulos (`video_server.py`, `camera_config_server.py`, `test/camera_test_debug.py`) han sido refactorizados para usar esta función, eliminando la duplicación de código y asegurando una inicialización consistente y robusta de la cámara en todo el proyecto.
+
+4. **Consistencia de la API de Simulación (`camera_mock.py`)**:
+   
+   - Se refactorizó por completo `camera_mock.py` para eliminar la API dual (funciones a nivel de módulo y métodos de clase).
+   - Ahora, el módulo solo expone una clase `Camera` que imita fielmente la API de la cámara real, gestionando su propio estado interno. Esto simplifica enormemente el código en otros módulos, que ya no necesitan bifurcaciones lógicas para tratar con la cámara real o la simulada.
+
+5. **Manejo de Excepciones Específico**:
+   
+   - Se reemplazaron los manejadores de excepciones genéricos (`except Exception`) por excepciones más específicas (`OSError`, `ValueError`, `RuntimeError`) en todos los módulos. Esto permite una depuración más precisa y un mejor entendimiento de los errores de hardware, red o lógicos.
+
+6. **Mejoras en Módulos de Prueba**:
+   
+   - Se refactorizó `test/test_RGB.py` para que utilice la clase `LEDController` y se ejecute de forma determinista (sin bucles infinitos).
+   - Se actualizó `test/camera_test_debug.py` para utilizar la nueva función `init_camera()` y para probar la API de `camera_mock.py` refactorizada.
